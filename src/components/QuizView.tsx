@@ -37,6 +37,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, onFinish, onCancel }) 
   const answersRef = useRef<Record<number, string>>({});
   const violationsRef = useRef(0);
   const submittingRef = useRef(false);
+  const lastViolationTimeRef = useRef(0);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -82,6 +83,13 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, onFinish, onCancel }) 
   useEffect(() => {
     const handleViolation = () => {
       if (submittingRef.current) return;
+
+      const now = Date.now();
+      // Debounce: prevent simultaneous visibilitychange and blur events from double-triggering
+      if (now - lastViolationTimeRef.current < 1500) {
+        return;
+      }
+      lastViolationTimeRef.current = now;
 
       setViolations(prev => {
         const nextCount = prev + 1;
@@ -420,10 +428,24 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, onFinish, onCancel }) 
             <p className="text-xs text-slate-600 leading-relaxed bg-rose-50 border border-rose-200 p-3.5 rounded-2xl">
               You reached the maximum limit of <strong>2 tab switch violations</strong>. In accordance with exam anti-cheat rules, your test has been locked and automatically submitted for scoring.
             </p>
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-rose-700">
-              <span className="inline-block w-2 h-2 rounded-full bg-rose-600 animate-ping" />
-              Processing final score & rankings...
-            </div>
+            {submitError ? (
+              <div className="space-y-3 pt-2">
+                <p className="text-xs font-semibold text-rose-700 bg-rose-100/70 p-3 rounded-2xl border border-rose-200 text-left">
+                  ⚠️ {submitError}
+                </p>
+                <button
+                  onClick={onCancel}
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-2xl cursor-pointer transition-colors"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-2 text-xs font-bold text-rose-700">
+                <span className="inline-block w-2 h-2 rounded-full bg-rose-600 animate-ping" />
+                Processing final score & rankings...
+              </div>
+            )}
           </div>
         </div>
       )}

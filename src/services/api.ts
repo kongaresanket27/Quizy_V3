@@ -93,6 +93,7 @@ export const api = {
   // Quizzes
   async getQuizzes(): Promise<Quiz[]> {
     const res = await fetch(`${API_BASE}/quizzes`);
+    if (!res.ok) throw new Error('Failed to fetch quizzes');
     return res.json();
   },
 
@@ -184,16 +185,19 @@ export const api = {
 
   async getAllAttempts(): Promise<QuizAttempt[]> {
     const res = await fetch(`${API_BASE}/attempts`);
+    if (!res.ok) throw new Error('Failed to fetch attempts');
     return res.json();
   },
 
   async getUserAttempts(userId: number): Promise<QuizAttempt[]> {
     const res = await fetch(`${API_BASE}/user/${userId}/attempts`);
+    if (!res.ok) throw new Error('Failed to fetch user attempts');
     return res.json();
   },
 
   async getAttemptDetails(attemptId: number): Promise<QuizAttempt> {
     const res = await fetch(`${API_BASE}/attempts/${attemptId}`);
+    if (!res.ok) throw new Error('Failed to fetch attempt details');
     return res.json();
   },
 

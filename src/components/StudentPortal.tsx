@@ -414,51 +414,51 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
       {/* ----------------- MAIN CONTENT AREA ----------------- */}
       <main className="flex-1 lg:ml-64 p-4 sm:p-6 lg:p-10 min-h-screen overflow-y-auto w-full">
         <div className="max-w-6xl mx-auto space-y-8">
-          {/* Top Bar with Greetings and Quick Export Button */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 font-display tracking-tight">
-                Welcome back, {user?.username}! 👋
-              </h1>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Your examination streak is active. Keep up the high performance!
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  setReportModalAttempt(null);
-                  setIsReportModalOpen(true);
-                }}
-                className="px-4 py-2 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:text-violet-700 hover:border-violet-300 font-bold text-xs shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5 text-violet-600" />
-                Download PDF Report
-              </button>
-
-              <div className="px-4 py-2 rounded-2xl bg-violet-600 text-white font-bold text-xs shadow-md shadow-violet-600/20 flex items-center gap-2">
-                <Award className="w-3.5 h-3.5" />
-                Rank #{overview?.rank || 1}
-              </div>
-
-              {/* Profile Avatar Button */}
-              <button
-                onClick={() => setIsProfileOpen(true)}
-                className="w-8 h-8 rounded-full bg-violet-100 hover:bg-violet-200 text-violet-800 font-bold text-xs flex items-center justify-center border border-violet-200 shadow-xs cursor-pointer active:scale-95 transition-all uppercase"
-                title="View Profile"
-                aria-label="View Student Profile"
-              >
-                {user?.username?.charAt(0).toUpperCase() || 'U'}
-              </button>
-            </div>
-          </div>
-
           {/* ============================================================== */}
           {/* TAB 1: DASHBOARD                                               */}
           {/* ============================================================== */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Top Bar with Greetings and Quick Export Button */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-black text-slate-900 font-display tracking-tight">
+                    Welcome back, {user?.username}! 👋
+                  </h1>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Your examination streak is active. Keep up the high performance!
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setReportModalAttempt(null);
+                      setIsReportModalOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:text-violet-700 hover:border-violet-300 font-bold text-xs shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-violet-600" />
+                    Download PDF Report
+                  </button>
+
+                  <div className="px-4 py-2 rounded-2xl bg-violet-600 text-white font-bold text-xs shadow-md shadow-violet-600/20 flex items-center gap-2">
+                    <Award className="w-3.5 h-3.5" />
+                    Rank #{overview?.rank || 1}
+                  </div>
+
+                  {/* Profile Avatar Button */}
+                  <button
+                    onClick={() => setIsProfileOpen(true)}
+                    className="w-8 h-8 rounded-full bg-violet-100 hover:bg-violet-200 text-violet-800 font-bold text-xs flex items-center justify-center border border-violet-200 shadow-xs cursor-pointer active:scale-95 transition-all uppercase"
+                    title="View Profile"
+                    aria-label="View Student Profile"
+                  >
+                    {user?.username?.charAt(0).toUpperCase() || 'U'}
+                  </button>
+                </div>
+              </div>
+
               {/* 4 KPI Summary Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs">

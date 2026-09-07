@@ -1341,8 +1341,14 @@ app.delete('/api/quizzes/:id', (req, res) => {
       questions.splice(i, 1);
     }
   }
+  // remove associated attempts
+  for (let i = attempts.length - 1; i >= 0; i--) {
+    if (attempts[i].quiz_id === quizId) {
+      attempts.splice(i, 1);
+    }
+  }
 
-  res.json({ success: true, message: 'Quiz and associated questions deleted' });
+  res.json({ success: true, message: 'Quiz, questions, and associated attempts deleted' });
 });
 
 // --- Questions Routes ---

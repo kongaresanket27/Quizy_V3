@@ -37,6 +37,11 @@ export const QuizResultView: React.FC<QuizResultViewProps> = ({
   const percentage = attempt.percentage ?? Math.round((attempt.score / (attempt.total || 1)) * 100);
   const isPassed = percentage >= 60;
   const isMaster = percentage >= 85;
+  const isLimitReached = Boolean(
+    attempt.max_attempts &&
+    attempt.max_attempts > 0 &&
+    (attempt.attempt_number || attempt.user_attempts_for_quiz || 1) >= attempt.max_attempts
+  );
 
   useEffect(() => {
     if (isPassed) {
@@ -155,11 +160,17 @@ export const QuizResultView: React.FC<QuizResultViewProps> = ({
               Download PDF Transcript
             </button>
             <button
-              onClick={onRetake}
-              className="px-5 py-2.5 rounded-2xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors flex items-center gap-2 cursor-pointer"
+              onClick={!isLimitReached ? onRetake : undefined}
+              disabled={isLimitReached}
+              className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+                isLimitReached
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200/80 shadow-none'
+                  : 'text-slate-700 bg-slate-100 hover:bg-slate-200 cursor-pointer'
+              }`}
+              title={isLimitReached ? 'Maximum attempt limit reached for this quiz' : 'Retake this quiz'}
             >
               <RotateCcw className="w-4 h-4" />
-              Retake Quiz
+              {isLimitReached ? `Limit Reached (${attempt.max_attempts}/${attempt.max_attempts})` : 'Retake Quiz'}
             </button>
             <button
               onClick={onViewAnalytics}

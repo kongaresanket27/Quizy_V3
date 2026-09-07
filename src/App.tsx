@@ -165,9 +165,18 @@ const AppContent: React.FC = () => {
       {viewState === 'quiz_result' && activeAttempt && (
         <QuizResultView
           attempt={activeAttempt}
-          onRetake={() => {
+          onRetake={async () => {
             if (activeQuiz) {
               setViewState('quiz_taking');
+            } else if (activeAttempt?.quiz_id) {
+              try {
+                const q = await api.getQuiz(activeAttempt.quiz_id);
+                setActiveQuiz(q);
+                setViewState('quiz_taking');
+              } catch (err) {
+                console.error('Failed to load quiz for retake:', err);
+                setViewState('user_dashboard');
+              }
             } else {
               setViewState('user_dashboard');
             }

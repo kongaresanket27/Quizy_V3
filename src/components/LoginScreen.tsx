@@ -198,26 +198,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       setLoading(true);
 
       if (mode === 'signup') {
-        // Create new account
-        const targetRole = role === 'admin' ? 'admin' : 'user';
+        // Student accounts can be self-registered
         const res = await api.register(
           cleanUser,
           cleanPass,
-          targetRole,
+          'user',
           email.trim() || undefined,
           fullName.trim() || undefined
         );
 
-        setSuccessMessage(`Account created successfully! Logging you into ${role === 'admin' ? 'Teacher Panel' : 'Student Portal'}...`);
+        setSuccessMessage('Student account created successfully! Logging you into Student Portal...');
 
-        const authPayload = res.admin || res.user;
+        const authPayload = res.user;
         setTimeout(() => {
           setAuthUser({
             id: authPayload?.id || 1,
             username: authPayload?.username || cleanUser,
-            role: targetRole,
+            role: 'user',
           });
-          onSuccess(targetRole);
+          onSuccess('user');
         }, 600);
 
       } else {
@@ -719,26 +718,75 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200">
-                  <div className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-700 font-bold flex items-center justify-center text-xs shrink-0">
-                    SK
+                  <div className={`w-7 h-7 rounded-full font-bold flex items-center justify-center text-xs shrink-0 ${
+                    role === 'superadmin'
+                      ? 'bg-rose-50 text-rose-700'
+                      : role === 'admin'
+                      ? 'bg-slate-100 text-slate-800'
+                      : 'bg-indigo-50 text-indigo-700'
+                  }`}>
+                    {role === 'superadmin' ? 'SK' : role === 'admin' ? 'RS' : 'SK'}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-slate-900 truncate">Sanket Kongare</p>
-                    <p className="text-[11px] text-slate-500 truncate">202401040057@mitaoe.ac.in</p>
+                    <p className="font-bold text-slate-900 truncate">
+                      {role === 'superadmin'
+                        ? 'Sanket Kongare'
+                        : role === 'admin'
+                        ? 'Prof. Rajesh Sharma'
+                        : 'Sanket Kongare'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      {role === 'superadmin'
+                        ? '202401040057@mitaoe.ac.in'
+                        : role === 'admin'
+                        ? 'teacher1@quizy.edu'
+                        : '202401040057@mitaoe.ac.in'}
+                    </p>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 uppercase">
-                    Student
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
+                    role === 'superadmin'
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                      : role === 'admin'
+                      ? 'bg-slate-100 text-slate-800 border border-slate-200'
+                      : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                  }`}>
+                    {role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Teacher' : 'Student'}
                   </span>
                 </div>
 
                 <button
                   type="button"
                   disabled={googleLoading}
-                  onClick={() => handleInstantDemoGoogleSignIn('202401040057@mitaoe.ac.in', 'Sanket Kongare')}
-                  className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  onClick={() =>
+                    handleInstantDemoGoogleSignIn(
+                      role === 'superadmin'
+                        ? '202401040057@mitaoe.ac.in'
+                        : role === 'admin'
+                        ? 'teacher1@quizy.edu'
+                        : '202401040057@mitaoe.ac.in',
+                      role === 'superadmin'
+                        ? 'Sanket Kongare'
+                        : role === 'admin'
+                        ? 'Prof. Rajesh Sharma'
+                        : 'Sanket Kongare'
+                    )
+                  }
+                  className={`w-full py-2.5 px-4 rounded-xl text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${
+                    role === 'superadmin'
+                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
+                      : role === 'admin'
+                      ? 'bg-slate-900 hover:bg-slate-800 shadow-slate-200'
+                      : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                  }`}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Continue as Sanket Kongare (Student)</span>
+                  <span>
+                    {role === 'superadmin'
+                      ? 'Continue as Sanket Kongare (Super Admin)'
+                      : role === 'admin'
+                      ? 'Continue as Prof. Rajesh Sharma (Teacher)'
+                      : 'Continue as Sanket Kongare (Student)'}
+                  </span>
                 </button>
               </div>
             </div>
