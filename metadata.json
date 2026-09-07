@@ -1,0 +1,8 @@
+{
+  "name": "Remix QUIZY",
+  "description": "Smart examination and quiz platform with competitive exam (GATE, JEE, NEET, CAT, UPSC) AI question generator, anti-cheat proctoring, and comprehensive analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
