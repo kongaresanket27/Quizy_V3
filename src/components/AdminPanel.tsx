@@ -26,6 +26,7 @@ import {
   Edit3,
   AlertTriangle,
   ShieldAlert,
+  AlertCircle,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -140,6 +141,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
 
   // Manual Add Question Modal
   const [showAddQuestionModal, setShowAddQuestionModal] = useState(false);
+  const [showAiModal, setShowAiModal] = useState(false);
   const [manualQuestionForm, setManualQuestionForm] = useState({
     question: '',
     option_a: '',
@@ -327,9 +329,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
     setAiErrorMessage(null);
     if (!aiCustomPrompt.trim()) return;
 
-    const effectiveTopic = aiSelectedTopic === 'Other'
+    const targetId = aiTargetQuizId ? parseInt(aiTargetQuizId) : (selectedQuizForQuestions?.id || quizzes[0]?.id || 1);
+    const targetQuiz = quizzes.find(q => q.id === targetId) || selectedQuizForQuestions;
+
+    let effectiveTopic = aiSelectedTopic === 'Other'
       ? customTopicInput.trim()
       : aiSelectedTopic;
+
+    // Intelligent domain realignment: if user prompt is clearly trigonometry/math or target quiz is math, ensure topic reflects it
+    const isPromptTrig = /trig|compound|multiple angle|sin2|sin 2|sin3|sin 3|sin\(|cos\(|tan\(|thetha|theta|angle|identity/i.test(aiCustomPrompt);
+    const isTargetMath = targetQuiz && /math/i.test(targetQuiz.subject || targetQuiz.title);
+
+    if (isPromptTrig) {
+      effectiveTopic = 'JEE Main & Adv: Mathematics';
+    } else if (aiSelectedTopic === 'Python' && isTargetMath) {
+      effectiveTopic = targetQuiz?.subject || 'JEE Main & Adv: Mathematics';
+    }
 
     if (aiSelectedTopic === 'Other' && !effectiveTopic) {
       setAiErrorMessage('Please enter your custom topic domain name in the typing window below.');
@@ -340,7 +355,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
       setAiGenerating(true);
       setAiSuccessMessage(null);
       setAiErrorMessage(null);
-      const targetId = aiTargetQuizId ? parseInt(aiTargetQuizId) : (quizzes[0]?.id || 1);
       const safeCount = Math.min(Math.max(Number(aiQuestionCount) || 10, 1), 50);
       const res = await api.generateAiQuestions(
         targetId,
@@ -352,14 +366,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
 
       setAiSuccessMessage(`Generated ${res.count || safeCount} questions for "${effectiveTopic}" (${aiDifficulty}) successfully!`);
       await fetchAllData();
-      if (selectedQuizForQuestions?.id === targetId) {
+      if (selectedQuizForQuestions?.id === targetId || manageQuestionsSubView === 'question_detail') {
         const updated = await api.getQuiz(targetId);
         setSelectedQuizForQuestions(updated);
       }
       setTimeout(() => {
         setAiSuccessMessage(null);
         setAiCustomPrompt('');
-      }, 4000);
+        setShowAiModal(false);
+      }, 2500);
     } catch (err: any) {
       console.error('AI question generation failed:', err);
       setAiErrorMessage(err.message || 'AI generation failed');
@@ -1141,8 +1156,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                           <label className="block text-xs font-bold text-slate-300 mb-1.5">Target Curriculum Quiz</label>
                           <select
                             value={aiTargetQuizId}
-                            onChange={e => setAiTargetQuizId(e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-2xl text-xs text-white focus:outline-none focus:border-indigo-400"
+                            onChange={e => {
+                              const newId = e.target.value;
+                              setAiTargetQuizId(newId);
+                              const matched = quizzes.find(q => q.id.toString() === newId);
+                              if (matched?.subject) {
+                                if (/math/i.test(matched.subject)) {
+                                  setAiSelectedTopic('JEE Main & Adv: Mathematics');
+                                } else if (/phys/i.test(matched.subject)) {
+                                  setAiSelectedTopic('JEE Main & Adv: Physics');
+                                } else if (/chem/i.test(matched.subject)) {
+                                  setAiSelectedTopic('JEE Main & Adv: Chemistry');
+                                } else if (/python/i.test(matched.subject)) {
+                                  setAiSelectedTopic('Python');
+                                } else if (/data/i.test(matched.subject)) {
+                                  setAiSelectedTopic('Databases');
+                                }
+                              }
+                            }}
+                            className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-2xl text-xs text-white focus:outline-none focus:border-indigo-400 cursor-pointer"
                           >
                             {quizzes.map(q => (
                               <option key={q.id} value={q.id} className="bg-slate-900 text-white">
@@ -1375,15 +1407,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1.5">Prompt / Instructions</label>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-xs font-bold text-slate-300">Prompt / Topic Instructions</label>
+                          <span className="text-[10px] text-slate-400">Click any suggested topic below to load</span>
+                        </div>
                         <input
                           type="text"
                           required
                           value={aiCustomPrompt}
                           onChange={e => setAiCustomPrompt(e.target.value)}
-                          placeholder="e.g. Generate questions on Python decorators, generators, and exception handling..."
-                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400"
+                          placeholder="e.g. Trigonometry compound and angle , Sin2theta ,Sin 3 thetha , Sin(a+b)..."
+                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400 shadow-inner"
                         />
+
+                        {/* Quick prompt suggestions */}
+                        <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                          {[
+                            'Trigonometry compound and angle , Sin2theta ,Sin 3 thetha , Sin(a+b) all this',
+                            'Calculus: Limits, Derivatives & Definite Integrals',
+                            'Linear Algebra: Matrices, Determinants & Eigenvalues',
+                            'Probability: Bayes Theorem & Distributions',
+                            'Python: OOP, Decorators & Generator Functions',
+                          ].map(sug => (
+                            <button
+                              key={sug}
+                              type="button"
+                              onClick={() => {
+                                setAiCustomPrompt(sug);
+                                if (/trig|sin|angle/i.test(sug)) {
+                                  setAiSelectedTopic('JEE Main & Adv: Mathematics');
+                                } else if (/calculus|algebra|probability/i.test(sug)) {
+                                  setAiSelectedTopic('JEE Main & Adv: Mathematics');
+                                } else if (/python/i.test(sug)) {
+                                  setAiSelectedTopic('Python');
+                                }
+                              }}
+                              className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer text-left ${
+                                aiCustomPrompt === sug
+                                  ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 font-bold'
+                                  : 'bg-white/5 hover:bg-white/15 text-slate-300 border-white/10'
+                              }`}
+                            >
+                              💡 {sug.length > 45 ? sug.slice(0, 42) + '...' : sug}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
                       <div className="flex justify-between items-center pt-2">
@@ -1609,6 +1677,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                           <option value={0}>Unlimited</option>
                         </select>
                       </div>
+
+                      <button
+                        onClick={() => {
+                          setAiTargetQuizId(selectedQuizForQuestions.id.toString());
+                          const subj = selectedQuizForQuestions.subject || '';
+                          if (/math/i.test(subj)) {
+                            setAiSelectedTopic('JEE Main & Adv: Mathematics');
+                          } else if (/phys/i.test(subj)) {
+                            setAiSelectedTopic('JEE Main & Adv: Physics');
+                          } else if (/chem/i.test(subj)) {
+                            setAiSelectedTopic('JEE Main & Adv: Chemistry');
+                          } else if (/python/i.test(subj)) {
+                            setAiSelectedTopic('Python');
+                          } else {
+                            setAiSelectedTopic('Other');
+                            setCustomTopicInput(subj);
+                          }
+                          setShowAiModal(true);
+                        }}
+                        className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-md shadow-indigo-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <Wand2 className="w-4 h-4 text-amber-300" />
+                        AI Generate
+                      </button>
 
                       <button
                         onClick={() => setShowAddQuestionModal(true)}
@@ -1995,6 +2087,214 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                   className="px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-md shadow-indigo-600/20 transition-colors cursor-pointer"
                 >
                   Save Question
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- AI QUESTION GENERATOR MODAL ----------------- */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in">
+          <div className="w-full max-w-xl bg-slate-900 border border-indigo-500/30 rounded-3xl p-7 shadow-2xl my-8 space-y-5 text-white">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300">
+                  <Wand2 className="w-5 h-5 text-amber-300" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white font-display">AI Question Generator</h3>
+                  <p className="text-xs text-slate-400">
+                    Adding questions to <span className="text-amber-300 font-bold">{selectedQuizForQuestions?.title || 'Selected Quiz'}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiModal(false)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {aiSuccessMessage && (
+              <div className="p-3 bg-emerald-500/20 border border-emerald-400/40 rounded-2xl text-xs text-emerald-200 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{aiSuccessMessage}</span>
+              </div>
+            )}
+
+            {aiErrorMessage && (
+              <div className="p-3 bg-rose-500/20 border border-rose-400/40 rounded-2xl text-xs text-rose-200 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{aiErrorMessage}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleGenerateAiQuestions} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Target Curriculum Quiz</label>
+                  <select
+                    value={aiTargetQuizId || selectedQuizForQuestions?.id?.toString()}
+                    onChange={e => {
+                      const newId = e.target.value;
+                      setAiTargetQuizId(newId);
+                      const matched = quizzes.find(q => q.id.toString() === newId);
+                      if (matched?.subject) {
+                        if (/math/i.test(matched.subject)) setAiSelectedTopic('JEE Main & Adv: Mathematics');
+                        else if (/phys/i.test(matched.subject)) setAiSelectedTopic('JEE Main & Adv: Physics');
+                        else if (/chem/i.test(matched.subject)) setAiSelectedTopic('JEE Main & Adv: Chemistry');
+                        else if (/python/i.test(matched.subject)) setAiSelectedTopic('Python');
+                      }
+                    }}
+                    className="w-full px-3.5 py-2 bg-white/10 border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-400 cursor-pointer"
+                  >
+                    {quizzes.map(q => (
+                      <option key={q.id} value={q.id} className="bg-slate-900 text-white">
+                        {q.title} ({q.subject})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Topic Domain</label>
+                  <select
+                    value={aiSelectedTopic}
+                    onChange={e => setAiSelectedTopic(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-white/10 border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-400 cursor-pointer"
+                  >
+                    <optgroup label="🏆 Competitive Entrance Exams" className="bg-slate-900 text-amber-300 font-bold">
+                      {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Competitive Exams').map(t => (
+                        <option key={t.value} value={t.value} className="bg-slate-900 text-white">{t.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="💻 Computer Science & Software" className="bg-slate-900 text-indigo-300 font-bold">
+                      {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Engineering & CS').map(t => (
+                        <option key={t.value} value={t.value} className="bg-slate-900 text-white">{t.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="✨ Custom / Other" className="bg-slate-900 text-emerald-300 font-bold">
+                      <option value="Other" className="bg-slate-900 text-amber-300 font-bold">Type My Own Custom Domain / Syllabus...</option>
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+
+              {/* Count & Difficulty */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Question Count</label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[5, 10, 15, 20].map(cnt => (
+                      <button
+                        key={cnt}
+                        type="button"
+                        onClick={() => setAiQuestionCount(cnt)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          aiQuestionCount === cnt
+                            ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/30 border border-indigo-300'
+                            : 'bg-white/10 hover:bg-white/20 text-slate-200 border border-white/10'
+                        }`}
+                      >
+                        {cnt} Qs
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Difficulty</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(['Easy', 'Medium', 'Hard'] as const).map(diff => (
+                      <button
+                        key={diff}
+                        type="button"
+                        onClick={() => setAiDifficulty(diff)}
+                        className={`py-1.5 px-1 rounded-xl text-xs font-bold text-center transition-all cursor-pointer ${
+                          aiDifficulty === diff
+                            ? diff === 'Easy' ? 'bg-emerald-500 text-white' : diff === 'Medium' ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white'
+                            : 'bg-white/10 hover:bg-white/20 text-slate-300 border border-white/10'
+                        }`}
+                      >
+                        {diff}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Prompt Input */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-300">Prompt / Topic Instructions</label>
+                  <span className="text-[10px] text-slate-400">Click a suggestion to load</span>
+                </div>
+                <textarea
+                  rows={2}
+                  required
+                  value={aiCustomPrompt}
+                  onChange={e => setAiCustomPrompt(e.target.value)}
+                  placeholder="e.g. Trigonometry compound and angle , Sin2theta ,Sin 3 thetha , Sin(a+b)..."
+                  className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400 shadow-inner"
+                />
+
+                {/* Quick suggestions */}
+                <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                  {[
+                    'Trigonometry compound and angle , Sin2theta ,Sin 3 thetha , Sin(a+b) all this',
+                    'Calculus: Limits, Derivatives & Definite Integrals',
+                    'Linear Algebra: Matrices, Determinants & Eigenvalues',
+                    'Python: OOP, Decorators & Generator Functions',
+                  ].map(sug => (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => {
+                        setAiCustomPrompt(sug);
+                        if (/trig|sin|angle/i.test(sug)) setAiSelectedTopic('JEE Main & Adv: Mathematics');
+                        else if (/calculus|algebra/i.test(sug)) setAiSelectedTopic('JEE Main & Adv: Mathematics');
+                        else if (/python/i.test(sug)) setAiSelectedTopic('Python');
+                      }}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer text-left ${
+                        aiCustomPrompt === sug
+                          ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 font-bold'
+                          : 'bg-white/5 hover:bg-white/15 text-slate-300 border-white/10'
+                      }`}
+                    >
+                      💡 {sug.length > 40 ? sug.slice(0, 38) + '...' : sug}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowAiModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-300 hover:text-white bg-white/10 hover:bg-white/15 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={aiGenerating}
+                  className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 rounded-xl shadow-lg shadow-indigo-500/25 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {aiGenerating ? (
+                    <>
+                      <span className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                      Generating {aiQuestionCount} Questions...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-4 h-4 text-amber-300" />
+                      Generate & Add {aiQuestionCount} Questions
+                    </>
+                  )}
                 </button>
               </div>
             </form>

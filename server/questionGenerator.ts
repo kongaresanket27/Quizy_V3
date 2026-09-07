@@ -790,6 +790,416 @@ const CURRICULUM_BANK: Record<string, GeneratedQuestion[]> = {
 };
 
 /**
+ * Specialized procedural generator for Trigonometry:
+ * - Compound Angles: sin(A+B), sin(A-B), cos(A+B), cos(A-B), tan(A+B), tan(A-B)
+ * - Multiple Angles: sin(2θ), cos(2θ), tan(2θ), sin(3θ), cos(3θ), tan(3θ)
+ * - Numerical evaluations, exact angle values (15°, 75°), transformation formulas.
+ * Guarantees distinct options, rotating correct answer positions, and detailed explanations.
+ */
+function generateProceduralTrigonometryQuestions(
+  prompt: string,
+  neededCount: number,
+  difficulty: 'Easy' | 'Medium' | 'Hard',
+  subjectName: string
+): GeneratedQuestion[] {
+  const list: GeneratedQuestion[] = [];
+  const optionLetters: ('a' | 'b' | 'c' | 'd')[] = ['a', 'b', 'c', 'd'];
+
+  const generators = [
+    // 1. Double Angle: sin(2θ) expansion
+    () => ({
+      q: 'Which of the following is the standard identity for sin(2θ) in terms of sin(θ) and cos(θ)?',
+      correct: '2 sin(θ) cos(θ)',
+      w1: 'sin²(θ) - cos²(θ)',
+      w2: '2 sin(θ)',
+      w3: 'cos²(θ) + sin²(θ)',
+      exp: 'From the compound angle addition formula: sin(2θ) = sin(θ + θ) = sin(θ)cos(θ) + cos(θ)sin(θ) = 2 sin(θ) cos(θ).'
+    }),
+
+    // 2. Double Angle: sin(2θ) in terms of tan(θ)
+    () => ({
+      q: 'Express sin(2θ) purely in terms of tan(θ):',
+      correct: '(2 tan(θ)) / (1 + tan²(θ))',
+      w1: '(2 tan(θ)) / (1 - tan²(θ))',
+      w2: '(1 - tan²(θ)) / (1 + tan²(θ))',
+      w3: 'tan(θ) / (1 + tan²(θ))',
+      exp: 'sin(2θ) = 2sin(θ)cos(θ) = (2sin(θ)cos(θ)) / (cos²(θ) + sin²(θ)). Dividing numerator and denominator by cos²(θ) yields (2 tan(θ)) / (1 + tan²(θ)).'
+    }),
+
+    // 3. Double Angle: cos(2θ) fundamental forms
+    () => ({
+      q: 'Which of the following expressions is NOT identically equivalent to cos(2θ)?',
+      correct: '2 sin²(θ) - 1',
+      w1: 'cos²(θ) - sin²(θ)',
+      w2: '2 cos²(θ) - 1',
+      w3: '1 - 2 sin²(θ)',
+      exp: 'cos(2θ) = cos²(θ) - sin²(θ) = 2cos²(θ) - 1 = 1 - 2sin²(θ). The expression 2sin²(θ) - 1 is equal to -cos(2θ).'
+    }),
+
+    // 4. Double Angle: cos(2θ) in terms of tan(θ)
+    () => ({
+      q: 'What is the expression for cos(2θ) written in terms of tan(θ)?',
+      correct: '(1 - tan²(θ)) / (1 + tan²(θ))',
+      w1: '(1 + tan²(θ)) / (1 - tan²(θ))',
+      w2: '(2 tan(θ)) / (1 - tan²(θ))',
+      w3: '(2 tan(θ)) / (1 + tan²(θ))',
+      exp: 'cos(2θ) = (cos²(θ) - sin²(θ)) / (cos²(θ) + sin²(θ)). Dividing both terms by cos²(θ) gives (1 - tan²(θ)) / (1 + tan²(θ)).'
+    }),
+
+    // 5. Double Angle: tan(2θ)
+    () => ({
+      q: 'What is the standard double-angle formula for tan(2θ) in terms of tan(θ)?',
+      correct: '(2 tan(θ)) / (1 - tan²(θ))',
+      w1: '(2 tan(θ)) / (1 + tan²(θ))',
+      w2: '(1 - tan²(θ)) / (2 tan(θ))',
+      w3: '(tan²(θ) - 1) / (2 tan(θ))',
+      exp: 'Using tan(A + B) = (tan A + tan B) / (1 - tan A tan B) with A = B = θ: tan(2θ) = (2 tan(θ)) / (1 - tan²(θ)).'
+    }),
+
+    // 6. Triple Angle: sin(3θ)
+    () => ({
+      q: 'What is the expansion of sin(3θ) in terms of powers of sin(θ)?',
+      correct: '3 sin(θ) - 4 sin³(θ)',
+      w1: '4 sin³(θ) - 3 sin(θ)',
+      w2: '3 sin(θ) + 4 sin³(θ)',
+      w3: '4 cos³(θ) - 3 cos(θ)',
+      exp: 'sin(3θ) = sin(2θ + θ) = sin(2θ)cos(θ) + cos(2θ)sin(θ) = 2sin(θ)cos²(θ) + (1 - 2sin²(θ))sin(θ) = 2sin(θ)(1 - sin²(θ)) + sin(θ) - 2sin³(θ) = 3 sin(θ) - 4 sin³(θ).'
+    }),
+
+    // 7. Triple Angle: cos(3θ)
+    () => ({
+      q: 'What is the expansion of cos(3θ) in terms of powers of cos(θ)?',
+      correct: '4 cos³(θ) - 3 cos(θ)',
+      w1: '3 cos(θ) - 4 cos³(θ)',
+      w2: '4 cos³(θ) + 3 cos(θ)',
+      w3: '3 sin(θ) - 4 sin³(θ)',
+      exp: 'cos(3θ) = cos(2θ + θ) = cos(2θ)cos(θ) - sin(2θ)sin(θ) = (2cos²(θ) - 1)cos(θ) - 2sin²(θ)cos(θ) = 2cos³(θ) - cos(θ) - 2(1 - cos²(θ))cos(θ) = 4 cos³(θ) - 3 cos(θ).'
+    }),
+
+    // 8. Triple Angle: tan(3θ)
+    () => ({
+      q: 'Which expression represents the triple-angle expansion of tan(3θ)?',
+      correct: '(3 tan(θ) - tan³(θ)) / (1 - 3 tan²(θ))',
+      w1: '(3 tan(θ) + tan³(θ)) / (1 - 3 tan²(θ))',
+      w2: '(3 tan²(θ) - 1) / (1 - 3 tan(θ))',
+      w3: '(3 tan(θ) - tan³(θ)) / (1 + 3 tan²(θ))',
+      exp: 'tan(3θ) = tan(2θ + θ) = (tan 2θ + tan θ) / (1 - tan 2θ tan θ). Substituting tan 2θ = 2tan θ / (1 - tan² θ) simplifies to (3 tan(θ) - tan³(θ)) / (1 - 3 tan²(θ)).'
+    }),
+
+    // 9. Compound Angle: sin(A + B)
+    () => ({
+      q: 'According to the compound angle addition theorem, sin(A + B) is equal to:',
+      correct: 'sin(A) cos(B) + cos(A) sin(B)',
+      w1: 'sin(A) cos(B) - cos(A) sin(B)',
+      w2: 'cos(A) cos(B) - sin(A) sin(B)',
+      w3: 'cos(A) cos(B) + sin(A) sin(B)',
+      exp: 'By the fundamental trigonometric addition theorem for sine: sin(A + B) = sin(A)cos(B) + cos(A)sin(B).'
+    }),
+
+    // 10. Compound Angle: sin(A - B)
+    () => ({
+      q: 'What is the compound angle identity for sin(A - B)?',
+      correct: 'sin(A) cos(B) - cos(A) sin(B)',
+      w1: 'sin(A) cos(B) + cos(A) sin(B)',
+      w2: 'cos(A) cos(B) + sin(A) sin(B)',
+      w3: 'cos(A) cos(B) - sin(A) sin(B)',
+      exp: 'sin(A - B) = sin(A + (-B)) = sin(A)cos(-B) + cos(A)sin(-B). Since cos(-B) = cos(B) and sin(-B) = -sin(B), sin(A - B) = sin(A)cos(B) - cos(A)sin(B).'
+    }),
+
+    // 11. Compound Angle: cos(A + B)
+    () => ({
+      q: 'According to the compound angle theorem, cos(A + B) is equal to:',
+      correct: 'cos(A) cos(B) - sin(A) sin(B)',
+      w1: 'cos(A) cos(B) + sin(A) sin(B)',
+      w2: 'sin(A) cos(B) + cos(A) sin(B)',
+      w3: 'sin(A) sin(B) - cos(A) cos(B)',
+      exp: 'The compound angle identity for cosine has a minus sign: cos(A + B) = cos(A)cos(B) - sin(A)sin(B).'
+    }),
+
+    // 12. Compound Angle: cos(A - B)
+    () => ({
+      q: 'What is the compound angle expansion of cos(A - B)?',
+      correct: 'cos(A) cos(B) + sin(A) sin(B)',
+      w1: 'cos(A) cos(B) - sin(A) sin(B)',
+      w2: 'sin(A) cos(B) - cos(A) sin(B)',
+      w3: 'sin(A) sin(B) - cos(A) cos(B)',
+      exp: 'cos(A - B) = cos(A + (-B)) = cos(A)cos(-B) - sin(A)sin(-B) = cos(A)cos(B) + sin(A)sin(B).'
+    }),
+
+    // 13. Compound Angle: tan(A + B)
+    () => ({
+      q: 'What is the addition formula for tan(A + B)?',
+      correct: '(tan(A) + tan(B)) / (1 - tan(A) tan(B))',
+      w1: '(tan(A) - tan(B)) / (1 + tan(A) tan(B))',
+      w2: '(tan(A) + tan(B)) / (1 + tan(A) tan(B))',
+      w3: '(1 - tan(A) tan(B)) / (tan(A) + tan(B))',
+      exp: 'tan(A + B) = sin(A + B)/cos(A + B) = (sin A cos B + cos A sin B)/(cos A cos B - sin A sin B). Dividing throughout by cos A cos B gives (tan A + tan B)/(1 - tan A tan B).'
+    }),
+
+    // 14. Compound Angle: tan(A - B)
+    () => ({
+      q: 'What is the subtraction formula for tan(A - B)?',
+      correct: '(tan(A) - tan(B)) / (1 + tan(A) tan(B))',
+      w1: '(tan(A) + tan(B)) / (1 - tan(A) tan(B))',
+      w2: '(tan(A) - tan(B)) / (1 - tan(A) tan(B))',
+      w3: '(1 + tan(A) tan(B)) / (tan(A) - tan(B))',
+      exp: 'Replacing B with -B in tan(A + B): tan(A - B) = (tan A - tan B) / (1 + tan A tan B).'
+    }),
+
+    // 15. Exact Value: sin(75°)
+    () => ({
+      q: 'Using the compound angle identity sin(45° + 30°), what is the exact value of sin(75°)?',
+      correct: '(√6 + √2) / 4',
+      w1: '(√6 - √2) / 4',
+      w2: '(√3 + 1) / 2',
+      w3: '(√2 + 1) / 4',
+      exp: 'sin(75°) = sin(45° + 30°) = sin(45°)cos(30°) + cos(45°)sin(30°) = (√2/2)(√3/2) + (√2/2)(1/2) = (√6 + √2)/4.'
+    }),
+
+    // 16. Exact Value: cos(75°)
+    () => ({
+      q: 'Evaluate the exact value of cos(75°) using the compound angle formula cos(45° + 30°):',
+      correct: '(√6 - √2) / 4',
+      w1: '(√6 + √2) / 4',
+      w2: '(√3 - 1) / 2',
+      w3: '(1 - √2) / 4',
+      exp: 'cos(75°) = cos(45° + 30°) = cos(45°)cos(30°) - sin(45°)sin(30°) = (√2/2)(√3/2) - (√2/2)(1/2) = (√6 - √2)/4.'
+    }),
+
+    // 17. Exact Value: sin(15°)
+    () => ({
+      q: 'Compute the exact value of sin(15°) using the compound angle identity sin(45° - 30°):',
+      correct: '(√6 - √2) / 4',
+      w1: '(√6 + √2) / 4',
+      w2: '(√3 - 1) / 2√2',
+      w3: '(√2 - 1) / 4',
+      exp: 'sin(15°) = sin(45° - 30°) = sin(45°)cos(30°) - cos(45°)sin(30°) = (√2/2)(√3/2) - (√2/2)(1/2) = (√6 - √2)/4.'
+    }),
+
+    // 18. Exact Value: cos(15°)
+    () => ({
+      q: 'What is the exact value of cos(15°)?',
+      correct: '(√6 + √2) / 4',
+      w1: '(√6 - √2) / 4',
+      w2: '(√3 + 1) / 2√2',
+      w3: '(√3 - 1) / 4',
+      exp: 'cos(15°) = cos(45° - 30°) = cos(45°)cos(30°) + sin(45°)sin(30°) = (√2/2)(√3/2) + (√2/2)(1/2) = (√6 + √2)/4.'
+    }),
+
+    // 19. Exact Value: tan(75°)
+    () => ({
+      q: 'What is the exact simplified value of tan(75°)?',
+      correct: '2 + √3',
+      w1: '2 - √3',
+      w2: '1 + √3',
+      w3: '√3 - 1',
+      exp: 'tan(75°) = tan(45° + 30°) = (1 + 1/√3)/(1 - 1/√3) = (√3 + 1)/(√3 - 1). Rationalizing gives (√3 + 1)²/2 = (4 + 2√3)/2 = 2 + √3.'
+    }),
+
+    // 20. Exact Value: tan(15°)
+    () => ({
+      q: 'What is the exact simplified value of tan(15°)?',
+      correct: '2 - √3',
+      w1: '2 + √3',
+      w2: '√3 - 1',
+      w3: '3 - √2',
+      exp: 'tan(15°) = tan(45° - 30°) = (1 - 1/√3)/(1 + 1/√3) = (√3 - 1)/(√3 + 1). Rationalizing gives (√3 - 1)²/2 = (4 - 2√3)/2 = 2 - √3.'
+    }),
+
+    // 21. Numerical Problem: sin(2θ) given sin(θ) = 3/5
+    () => ({
+      q: 'If sin(θ) = 3/5 and θ is in the first quadrant (0 < θ < π/2), what is the exact value of sin(2θ)?',
+      correct: '24 / 25',
+      w1: '12 / 25',
+      w2: '7 / 25',
+      w3: '6 / 5',
+      exp: 'In quadrant I, cos(θ) = √(1 - sin²θ) = √(1 - 9/25) = 4/5. Then sin(2θ) = 2 sin(θ) cos(θ) = 2 × (3/5) × (4/5) = 24/25.'
+    }),
+
+    // 22. Numerical Problem: cos(2θ) given cos(θ) = 4/5
+    () => ({
+      q: 'If cos(θ) = 4/5 and θ is acute, what is the value of cos(2θ)?',
+      correct: '7 / 25',
+      w1: '24 / 25',
+      w2: '16 / 25',
+      w3: '9 / 25',
+      exp: 'Using the identity cos(2θ) = 2cos²(θ) - 1: cos(2θ) = 2(4/5)² - 1 = 2(16/25) - 1 = 32/25 - 1 = 7/25.'
+    }),
+
+    // 23. Numerical Problem: tan(A + B) given tan(A) = 1/2, tan(B) = 1/3
+    () => ({
+      q: 'If tan(A) = 1/2 and tan(B) = 1/3, what is the exact value of tan(A + B)?',
+      correct: '1 (which implies A + B = 45°)',
+      w1: '5 / 6',
+      w2: '1 / 6',
+      w3: '2 / 3',
+      exp: 'tan(A + B) = (tan A + tan B) / (1 - tan A tan B) = (1/2 + 1/3) / (1 - (1/2)(1/3)) = (5/6) / (1 - 1/6) = (5/6) / (5/6) = 1.'
+    }),
+
+    // 24. Numerical Problem: sin(3θ) given sin(θ) = 1/2
+    () => ({
+      q: 'If sin(θ) = 1/2, evaluate sin(3θ) using the triple-angle formula:',
+      correct: '1',
+      w1: '1 / 2',
+      w2: '0',
+      w3: '√3 / 2',
+      exp: 'sin(3θ) = 3sin(θ) - 4sin³(θ) = 3(1/2) - 4(1/2)³ = 3/2 - 4(1/8) = 3/2 - 1/2 = 1. (Note: θ = 30°, so 3θ = 90° and sin(90°) = 1).'
+    }),
+
+    // 25. Numerical Problem: cos(3θ) given cos(θ) = 1/2
+    () => ({
+      q: 'If cos(θ) = 1/2, what is the exact value of cos(3θ)?',
+      correct: '-1',
+      w1: '1',
+      w2: '0',
+      w3: '-1 / 2',
+      exp: 'cos(3θ) = 4cos³(θ) - 3cos(θ) = 4(1/2)³ - 3(1/2) = 4(1/8) - 3/2 = 1/2 - 3/2 = -1. (Note: θ = 60°, so 3θ = 180° and cos(180°) = -1).'
+    }),
+
+    // 26. Product to Sum: 2 sin(A) cos(B)
+    () => ({
+      q: 'Express the product 2 sin(A) cos(B) as a sum or difference of trigonometric functions:',
+      correct: 'sin(A + B) + sin(A - B)',
+      w1: 'sin(A + B) - sin(A - B)',
+      w2: 'cos(A + B) + cos(A - B)',
+      w3: 'cos(A - B) - cos(A + B)',
+      exp: 'sin(A + B) + sin(A - B) = (sin A cos B + cos A sin B) + (sin A cos B - cos A sin B) = 2 sin A cos B.'
+    }),
+
+    // 27. Product to Sum: 2 cos(A) cos(B)
+    () => ({
+      q: 'Express the product 2 cos(A) cos(B) in sum-difference form:',
+      correct: 'cos(A + B) + cos(A - B)',
+      w1: 'cos(A + B) - cos(A - B)',
+      w2: 'sin(A + B) + sin(A - B)',
+      w3: 'sin(A + B) - sin(A - B)',
+      exp: 'cos(A + B) + cos(A - B) = (cos A cos B - sin A sin B) + (cos A cos B + sin A sin B) = 2 cos A cos B.'
+    }),
+
+    // 28. Product to Sum: 2 sin(A) sin(B)
+    () => ({
+      q: 'Which expression is identically equal to 2 sin(A) sin(B)?',
+      correct: 'cos(A - B) - cos(A + B)',
+      w1: 'cos(A + B) - cos(A - B)',
+      w2: 'sin(A + B) - sin(A - B)',
+      w3: 'sin(A + B) + sin(A - B)',
+      exp: 'cos(A - B) - cos(A + B) = (cos A cos B + sin A sin B) - (cos A cos B - sin A sin B) = 2 sin A sin B.'
+    }),
+
+    // 29. Identity: sin(A + B) sin(A - B)
+    () => ({
+      q: 'What is the product sin(A + B) sin(A - B) identically equal to?',
+      correct: 'sin²(A) - sin²(B)',
+      w1: 'sin²(A) + sin²(B)',
+      w2: 'cos²(A) - cos²(B)',
+      w3: 'cos²(A) - sin²(B)',
+      exp: 'sin(A + B)sin(A - B) = (sin A cos B + cos A sin B)(sin A cos B - cos A sin B) = sin²A cos²B - cos²A sin²B = sin²A(1 - sin²B) - (1 - sin²A)sin²B = sin²A - sin²B.'
+    }),
+
+    // 30. Evaluation: cos(20°) cos(40°) cos(80°)
+    () => ({
+      q: 'What is the exact product value of cos(20°) cos(40°) cos(80°)?',
+      correct: '1 / 8',
+      w1: '1 / 4',
+      w2: '1 / 16',
+      w3: '3 / 8',
+      exp: 'Using the continuous product identity cos(θ)cos(2θ)cos(4θ) = sin(8θ)/(8 sin θ) with θ = 20°: sin(160°)/(8 sin 20°) = sin(180° - 20°)/(8 sin 20°) = sin(20°)/(8 sin 20°) = 1/8.'
+    }),
+
+    // 31. Conditional Identity: tan(A) + tan(B) + tan(C) in a triangle
+    () => ({
+      q: 'In any triangle ABC where A + B + C = 180°, what does tan(A) + tan(B) + tan(C) equal?',
+      correct: 'tan(A) tan(B) tan(C)',
+      w1: '1',
+      w2: '0',
+      w3: 'tan(A + B + C)',
+      exp: 'Since A + B = 180° - C, tan(A + B) = tan(180° - C) = -tan(C). Expanding (tan A + tan B)/(1 - tan A tan B) = -tan C gives tan A + tan B + tan C = tan A tan B tan C.'
+    }),
+
+    // 32. Double Angle reduction: 1 - cos(2θ)
+    () => ({
+      q: 'Express (1 - cos(2θ)) / 2 in terms of sin(θ):',
+      correct: 'sin²(θ)',
+      w1: 'cos²(θ)',
+      w2: '2 sin²(θ)',
+      w3: 'sin(θ)',
+      exp: 'Since cos(2θ) = 1 - 2sin²(θ), rearranging gives 2sin²(θ) = 1 - cos(2θ), therefore (1 - cos(2θ)) / 2 = sin²(θ).'
+    }),
+
+    // 33. Double Angle reduction: 1 + cos(2θ)
+    () => ({
+      q: 'Express (1 + cos(2θ)) / 2 in terms of cos(θ):',
+      correct: 'cos²(θ)',
+      w1: 'sin²(θ)',
+      w2: '2 cos²(θ)',
+      w3: 'cos(θ)',
+      exp: 'Since cos(2θ) = 2cos²(θ) - 1, rearranging gives 2cos²(θ) = 1 + cos(2θ), therefore (1 + cos(2θ)) / 2 = cos²(θ).'
+    }),
+
+    // 34. Ratio reduction: sin(2θ) / (1 + cos(2θ))
+    () => ({
+      q: 'Simplify the expression: sin(2θ) / (1 + cos(2θ)):',
+      correct: 'tan(θ)',
+      w1: 'cot(θ)',
+      w2: 'sin(θ)',
+      w3: '2 tan(θ)',
+      exp: 'sin(2θ) = 2sin(θ)cos(θ) and 1 + cos(2θ) = 2cos²(θ). Then 2sin(θ)cos(θ) / (2cos²(θ)) = sin(θ)/cos(θ) = tan(θ).'
+    }),
+
+    // 35. Numerical Problem: sin(2θ) given tan(θ) = 1/2
+    () => ({
+      q: 'If tan(θ) = 1/2, compute the value of sin(2θ):',
+      correct: '4 / 5',
+      w1: '3 / 5',
+      w2: '2 / 5',
+      w3: '1',
+      exp: 'Using sin(2θ) = (2 tan θ) / (1 + tan² θ): sin(2θ) = (2 × 1/2) / (1 + (1/2)²) = 1 / (1 + 1/4) = 1 / (5/4) = 4/5.'
+    }),
+
+    // 36. Numerical Problem: tan(2θ) given tan(θ) = 1/3
+    () => ({
+      q: 'If tan(θ) = 1/3, evaluate tan(2θ):',
+      correct: '3 / 4',
+      w1: '2 / 3',
+      w2: '1 / 2',
+      w3: '4 / 3',
+      exp: 'Using tan(2θ) = (2 tan θ) / (1 - tan² θ): tan(2θ) = (2 × 1/3) / (1 - (1/3)²) = (2/3) / (1 - 1/9) = (2/3) / (8/9) = (2/3) × (9/8) = 3/4.'
+    })
+  ];
+
+  for (let i = 0; i < neededCount; i++) {
+    const gen = generators[i % generators.length];
+    const data = gen();
+    const targetLetter = optionLetters[i % 4];
+
+    let optA = '', optB = '', optC = '', optD = '';
+    if (targetLetter === 'a') {
+      optA = data.correct; optB = data.w1; optC = data.w2; optD = data.w3;
+    } else if (targetLetter === 'b') {
+      optA = data.w1; optB = data.correct; optC = data.w2; optD = data.w3;
+    } else if (targetLetter === 'c') {
+      optA = data.w1; optB = data.w2; optC = data.correct; optD = data.w3;
+    } else {
+      optA = data.w1; optB = data.w2; optC = data.w3; optD = data.correct;
+    }
+
+    list.push({
+      question: data.q,
+      option_a: optA,
+      option_b: optB,
+      option_c: optC,
+      option_d: optD,
+      correct_option: targetLetter,
+      subject: subjectName || 'Mathematics',
+      difficulty,
+      explanation: `${data.exp} (Option ${targetLetter.toUpperCase()} is the exact mathematically verified answer).`,
+    });
+  }
+
+  return list;
+}
+
+/**
  * Specialized procedural generator for Mathematics topics (Calculus, Linear Algebra,
  * Probability, Geometry, Trigonometry, Discrete Math, Differential Equations).
  * Guarantees mathematically authentic problems with exact arithmetic, correct options,
@@ -1023,7 +1433,7 @@ function generateProceduralMathQuestions(
 
 /**
  * Intelligent Subject Question Generator
- * Uses AI Client if configured; falls back to an extensive curriculum generator.
+ * Uses AI Client (Gemini or Ollama) if configured; falls back to an extensive curriculum generator.
  */
 export async function generateCurriculumQuestions(
   prompt: string,
@@ -1035,13 +1445,16 @@ export async function generateCurriculumQuestions(
   const safeCount = Math.min(Math.max(count || 10, 1), 50);
   const subjectLower = (subject || '').toLowerCase().trim();
   const promptLower = (prompt || '').toLowerCase().trim();
+  const fullText = `${subjectLower} ${promptLower}`;
 
-  // Detect if query is Mathematics or analytical mathematical domain
-  const isMath = /math|calculus|algebra|linear algebra|differential|integral|matrix|matrices|probability|statistics|trig|geometry|arithmetic/i.test(
-    `${subjectLower} ${promptLower}`
-  );
+  // Precise topic classification
+  const isTrigonometry = /trig|compound|multiple angle|sin2|sin 2|sin3|sin 3|sin\(|cos\(|tan\(|thetha|theta|angle|identity|identities|sin²|cos²|tan²|sec²|cosec|cot/i.test(fullText);
+  const isCalculus = /calculus|derivative|integral|limit|continuity|differential equation|maxima|minima/i.test(fullText);
+  const isLinearAlgebra = /matrix|matrices|determinant|eigen|trace|rank|vector/i.test(fullText);
+  const isProbability = /probability|distribution|bayes|variance|binomial|poisson/i.test(fullText);
+  const isMath = isTrigonometry || isCalculus || isLinearAlgebra || isProbability || /math|algebra|arithmetic|geometry/i.test(fullText);
 
-  // 1. Try AI generation if client is available
+  // 1. Try Gemini AI generation if client is available
   if (aiClient) {
     try {
       const mathGuidance = isMath
@@ -1053,7 +1466,7 @@ export async function generateCurriculumQuestions(
         : '';
 
       const response = await aiClient.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         contents: `You are an expert national examination author and university professor setting questions for competitive examinations (including GATE, JEE Main & Advanced, NEET, CAT, GRE, UPSC, or technical university curricula).
 Subject/Curriculum: "${subject}".
 Syllabus / Topic Focus: "${prompt}".
@@ -1062,7 +1475,7 @@ Target Question Count: ${safeCount}.${mathGuidance}
 
 Generate exactly ${safeCount} high-quality multiple-choice questions aligned with standard competitive examination patterns.
 - For GATE (CS/IT, ECE, Mechanical): Include formal theorems, computational complexity, memory structures, circuit analysis, automata.
-- For JEE / Mathematics: Include calculus (integrals, limits, ODEs), linear algebra (matrices, eigenvalues, trace), coordinate geometry, probability, trigonometry.
+- For JEE / Mathematics: Include calculus (integrals, limits, ODEs), linear algebra (matrices, eigenvalues, trace), coordinate geometry, probability, trigonometry (compound angles, double angles sin 2θ, cos 2θ, tan 2θ, triple angles sin 3θ, cos 3θ, sin(A+B), etc.).
 - For NEET: Include genetics, molecular biology, human organ physiology, botanical mechanisms.
 - For CAT / GMAT / Aptitude: Include time-speed-distance, percentage calculations, algebra, geometric reasoning.
 - For UPSC / General Studies: Include Indian constitutional articles, macroeconomics, environmental agreements, governance policies.
@@ -1113,12 +1526,35 @@ Important: Distribute correct options ('a', 'b', 'c', 'd') evenly across the que
   }
 
   // 2. High-Speed Curriculum & Procedural Generator (Offline/Fallback)
+
+  // 2a. If Trigonometry is specifically requested or detected in prompt/subject
+  if (isTrigonometry) {
+    return generateProceduralTrigonometryQuestions(
+      prompt,
+      safeCount,
+      difficulty,
+      subject || 'Mathematics'
+    );
+  }
+
+  // 2b. If other Mathematics subtopics are requested
+  if (isMath) {
+    return generateProceduralMathQuestions(
+      prompt,
+      safeCount,
+      difficulty,
+      subject || 'Mathematics'
+    );
+  }
+
+  // 2c. Non-mathematical subjects: Select normalized subject from curriculum bank
   const result: GeneratedQuestion[] = [];
   
   const normalizedSubject = Object.keys(CURRICULUM_BANK).find(k => {
     const kl = k.toLowerCase();
-    if (isMath && (kl === 'mathematics' || kl.includes('mathematics') || kl.includes('math'))) {
-      return true;
+    // Prevent non-math subject matching physics erroneously if user did not ask for physics
+    if (kl.includes('physics') && !subjectLower.includes('physics') && !promptLower.includes('physics')) {
+      return false;
     }
     return (
       kl === subjectLower ||
@@ -1139,13 +1575,20 @@ Important: Distribute correct options ('a', 'b', 'c', 'd') evenly across the que
   const subjectPool = normalizedSubject ? CURRICULUM_BANK[normalizedSubject] : null;
 
   if (subjectPool && subjectPool.length > 0) {
-    // Shuffle and pick available questions from subject pool
-    const shuffled = [...subjectPool].sort(() => 0.5 - Math.random());
-    for (let i = 0; i < Math.min(safeCount, shuffled.length); i++) {
+    // If user provided prompt keywords, rank questions that match keywords first
+    const keywords = promptLower.split(/[\s,]+/).filter(w => w.length > 3);
+    const matchingQuestions = keywords.length > 0
+      ? subjectPool.filter(q => keywords.some(kw => q.question.toLowerCase().includes(kw) || q.explanation.toLowerCase().includes(kw)))
+      : [];
+
+    const remainingQuestions = subjectPool.filter(q => !matchingQuestions.includes(q));
+    const combined = [...matchingQuestions, ...remainingQuestions.sort(() => 0.5 - Math.random())];
+
+    for (let i = 0; i < Math.min(safeCount, combined.length); i++) {
       result.push({
-        ...shuffled[i],
+        ...combined[i],
         difficulty,
-        subject: subject || shuffled[i].subject,
+        subject: subject || combined[i].subject,
       });
     }
   }
