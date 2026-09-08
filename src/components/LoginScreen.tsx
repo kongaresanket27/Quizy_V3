@@ -45,12 +45,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Listen for OAuth postMessage from Google popup
+  // Listen for OAuth postMessage & localStorage events from Google popup
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Accept message from popup if valid
-      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
-        const { user: authPayload, role: assignedRole } = event.data;
+    const handleAuthPayload = (data: any) => {
+      if (data?.type === 'GOOGLE_AUTH_SUCCESS') {
+        const { user: authPayload, role: assignedRole } = data;
         const finalRole = assignedRole || role;
         setSuccessMessage(`Google Authentication successful! Welcome, ${authPayload?.fullName || authPayload?.username || 'User'}!`);
         setAuthUser({
@@ -64,14 +63,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         setTimeout(() => {
           onSuccess(finalRole);
         }, 500);
-      } else if (event.data?.type === 'GOOGLE_AUTH_ERROR') {
-        setError(`Google Sign-In failed: ${event.data.error || 'Authentication was cancelled or failed.'}`);
+      } else if (data?.type === 'GOOGLE_AUTH_ERROR') {
+        setError(`Google Sign-In failed: ${data.error || 'Authentication was cancelled or failed.'}`);
         setGoogleLoading(false);
       }
     };
 
+    const handleMessage = (event: MessageEvent) => {
+      handleAuthPayload(event.data);
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'google_auth_result' && event.newValue) {
+        try {
+          const parsed = JSON.parse(event.newValue);
+          localStorage.removeItem('google_auth_result');
+          handleAuthPayload(parsed);
+        } catch (e) {}
+      }
+    };
+
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [onSuccess, setAuthUser, role]);
 
   // Initialize Google Identity Services (GIS) if available (Only for Student role)
@@ -134,25 +151,42 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setGoogleLoading(true);
 
     try {
-      // 1. Fetch OAuth URL from server configured for this domain
       const redirectUri = `${window.location.origin}/auth/google/callback`;
-      const config = await api.getGoogleAuthUrl('user', redirectUri);
+      let authUrl: string | undefined;
 
-      if (!config.url) {
-        setError('Google Sign-In is not configured. Please verify environment settings.');
-        setGoogleLoading(false);
-        return;
+      try {
+        const config = await api.getGoogleAuthUrl('user', redirectUri);
+        authUrl = config.url;
+      } catch (e) {
+        // Fallback to client-side URL generation
       }
 
-      // 2. Open Google OAuth provider URL directly in popup
+      // If server didn't provide a URL, construct the standard Google OAuth URL directly
+      if (!authUrl) {
+        const clientId = '37730456049-73lkm4kg9gldv0ehobq5t07gt6j9tdu2.apps.googleusercontent.com';
+        const statePayload = { role: 'user', redirectUri };
+        const state = btoa(JSON.stringify(statePayload));
+        const params = new URLSearchParams({
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          response_type: 'code',
+          scope: 'openid email profile',
+          access_type: 'offline',
+          prompt: 'select_account',
+          state,
+        });
+        authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+      }
+
+      // Open Google OAuth authorization window
       const authWindow = window.open(
-        config.url,
+        authUrl,
         'google_oauth_popup',
         'width=550,height=680,scrollbars=yes,status=yes'
       );
 
       if (!authWindow) {
-        setError('Popup was blocked by your browser. Please allow popups for this site to sign in with Google.');
+        setError('Popup was blocked by your browser. Please allow popups for this site, or open the application in a new tab.');
         setGoogleLoading(false);
         return;
       }

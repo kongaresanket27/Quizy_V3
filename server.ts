@@ -8,6 +8,16 @@ import { generateCurriculumQuestions } from './server/questionGenerator';
 
 dotenv.config();
 
+const GOOGLE_CLIENT_ID =
+  process.env.GOOGLE_CLIENT_ID ||
+  process.env.CLIENT_ID ||
+  '37730456049-73lkm4kg9gldv0ehobq5t07gt6j9tdu2.apps.googleusercontent.com';
+
+const GOOGLE_CLIENT_SECRET =
+  process.env.GOOGLE_CLIENT_SECRET ||
+  process.env.CLIENT_SECRET ||
+  '';
+
 const app = express();
 const PORT = 3000;
 
@@ -919,7 +929,7 @@ app.get('/api/auth/google/config', (req, res) => {
 });
 
 app.get('/api/auth/google/url', (req, res) => {
-  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.CLIENT_ID;
+  const clientId = GOOGLE_CLIENT_ID;
   const configured = Boolean(clientId && clientId.trim().length > 0);
 
   if (!configured) {
@@ -1087,8 +1097,11 @@ app.post('/api/auth/google/credential', async (req, res) => {
   }
 });
 
-// Google OAuth Callback Handler with postMessage
+// Google OAuth Callback Handler with postMessage & localStorage synchronization
 app.get(['/auth/google/callback', '/auth/google/callback/', '/auth/callback', '/auth/callback/'], async (req, res) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
+
   const { code, state, error: oauthError } = req.query;
 
   if (oauthError) {
@@ -1098,8 +1111,15 @@ app.get(['/auth/google/callback', '/auth/google/callback/', '/auth/callback', '/
           <h2 style="color: #e11d48;">Authentication Cancelled</h2>
           <p style="color: #64748b;">${String(oauthError)}</p>
           <script>
+            try {
+              localStorage.setItem('google_auth_result', JSON.stringify({ type: 'GOOGLE_AUTH_ERROR', error: '${String(oauthError)}', timestamp: Date.now() }));
+            } catch (e) {}
             if (window.opener) {
-              window.opener.postMessage({ type: 'GOOGLE_AUTH_ERROR', error: '${String(oauthError)}' }, '*');
+              try {
+                window.opener.postMessage({ type: 'GOOGLE_AUTH_ERROR', error: '${String(oauthError)}' }, '*');
+              } catch (e) {}
+              setTimeout(() => window.close(), 1500);
+            } else {
               setTimeout(() => window.close(), 1500);
             }
           </script>
@@ -1113,8 +1133,8 @@ app.get(['/auth/google/callback', '/auth/google/callback/', '/auth/callback', '/
   }
 
   try {
-    const clientId = process.env.GOOGLE_CLIENT_ID || process.env.CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.CLIENT_SECRET;
+    const clientId = GOOGLE_CLIENT_ID;
+    const clientSecret = GOOGLE_CLIENT_SECRET;
 
     let parsedState: { role?: string; redirectUri?: string } = {};
     if (state) {
@@ -1243,12 +1263,23 @@ app.get(['/auth/google/callback', '/auth/google/callback/', '/auth/callback', '/
             <p>Welcome, ${fullName}! Returning you to QUIZY...</p>
           </div>
           <script>
-            if (window.opener) {
-              window.opener.postMessage({
+            try {
+              localStorage.setItem('google_auth_result', JSON.stringify({
                 type: 'GOOGLE_AUTH_SUCCESS',
                 user: ${JSON.stringify(authUser)},
-                role: '${assignedRole}'
-              }, '*');
+                role: '${assignedRole}',
+                timestamp: Date.now()
+              }));
+            } catch (e) {}
+
+            if (window.opener) {
+              try {
+                window.opener.postMessage({
+                  type: 'GOOGLE_AUTH_SUCCESS',
+                  user: ${JSON.stringify(authUser)},
+                  role: '${assignedRole}'
+                }, '*');
+              } catch (e) {}
               setTimeout(() => {
                 window.close();
               }, 400);
@@ -1266,8 +1297,20 @@ app.get(['/auth/google/callback', '/auth/google/callback/', '/auth/callback', '/
           <h2 style="color: #e11d48;">Google Sign-In Error</h2>
           <p style="color: #64748b;">${err.message || 'Unable to authenticate with Google'}</p>
           <script>
+            try {
+              localStorage.setItem('google_auth_result', JSON.stringify({
+                type: 'GOOGLE_AUTH_ERROR',
+                error: '${(err.message || '').replace(/'/g, "\\'")}',
+                timestamp: Date.now()
+              }));
+            } catch (e) {}
+
             if (window.opener) {
-              window.opener.postMessage({ type: 'GOOGLE_AUTH_ERROR', error: '${(err.message || '').replace(/'/g, "\\'")}' }, '*');
+              try {
+                window.opener.postMessage({ type: 'GOOGLE_AUTH_ERROR', error: '${(err.message || '').replace(/'/g, "\\'")}' }, '*');
+              } catch (e) {}
+              setTimeout(() => window.close(), 2500);
+            } else {
               setTimeout(() => window.close(), 2500);
             }
           </script>
