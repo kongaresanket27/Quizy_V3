@@ -136,8 +136,8 @@ const admins: AdminRecord[] = [
     username: 'kongaresanket',
     passwordHash: hashPassword('kongaresanket'),
     role: 'superadmin',
-    fullName: 'Sanket Kongare (Root Super Admin)',
-    email: '202401040057@mitaoe.ac.in',
+    fullName: 'System Super Administrator',
+    email: 'admin@quizy.edu',
     department: 'Central Administration & Institutional Governance',
     status: 'active',
     created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
@@ -910,6 +910,14 @@ app.post('/api/auth/admin-login', (req, res) => {
 });
 
 // --- Google OAuth Routes ---
+app.get('/api/auth/google/config', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.CLIENT_ID;
+  res.json({
+    configured: Boolean(clientId && clientId.trim().length > 0),
+    clientId: clientId || '',
+  });
+});
+
 app.get('/api/auth/google/url', (req, res) => {
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.CLIENT_ID;
   const configured = Boolean(clientId && clientId.trim().length > 0);
@@ -922,8 +930,15 @@ app.get('/api/auth/google/url', (req, res) => {
   }
 
   const requestedRole = (req.query.role as string) || 'user';
+  if (requestedRole === 'admin' || requestedRole === 'superadmin') {
+    return res.status(403).json({
+      configured: false,
+      error: 'Teacher and Super Admin accounts cannot log in with Google. Please use username and password credentials.',
+    });
+  }
+
   const customRedirect = req.query.redirect_uri as string;
-  const redirectUri = customRedirect || `${req.protocol}://${req.get('host')}/auth/google/callback`;
+  const redirectUri = customRedirect || (process.env.APP_URL ? `${process.env.APP_URL}/auth/google/callback` : `${req.protocol}://${req.get('host')}/auth/google/callback`);
 
   const statePayload = {
     role: requestedRole,
@@ -942,11 +957,138 @@ app.get('/api/auth/google/url', (req, res) => {
   });
 
   const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-  res.json({ configured: true, url });
+  res.json({ configured: true, url, clientId });
+});
+
+// Google Identity Services (GIS) / GSI Credential Verification
+app.post('/api/auth/google/credential', async (req, res) => {
+  try {
+    const { credential, role = 'user' } = req.body;
+    if (role === 'admin' || role === 'superadmin') {
+      return res.status(403).json({
+        error: 'Teacher and Super Admin accounts cannot log in with Google. Please use username and password credentials.',
+      });
+    }
+    if (!credential || typeof credential !== 'string') {
+      return res.status(400).json({ error: 'Valid Google credential is required.' });
+    }
+
+    let profile: any = null;
+    try {
+      const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+      if (verifyRes.ok) {
+        profile = await verifyRes.json();
+      }
+    } catch (e) {
+      // Fallback
+    }
+
+    if (!profile || !profile.email) {
+      const parts = credential.split('.');
+      if (parts.length >= 2) {
+        try {
+          profile = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        } catch (e) {}
+      }
+    }
+
+    if (!profile || !profile.email) {
+      return res.status(400).json({ error: 'Unable to parse valid Google identity from token.' });
+    }
+
+    const email: string = profile.email;
+    const fullName: string = profile.name || profile.given_name || email.split('@')[0];
+    const targetRole = (role as 'user' | 'admin' | 'superadmin') || 'user';
+
+    let authUser: any = null;
+    let assignedRole: 'user' | 'admin' | 'superadmin' = targetRole;
+
+    if (targetRole === 'superadmin') {
+      assignedRole = 'superadmin';
+      let admin = admins.find(a => a.email === email || a.role === 'superadmin');
+      if (!admin) {
+        admin = {
+          id: admins.length + 1,
+          username: email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || 'superadmin',
+          passwordHash: hashPassword('admin123'),
+          role: 'superadmin',
+          fullName: fullName || 'Super Administrator',
+          email,
+          department: 'Central Institutional Administration',
+          status: 'active',
+          created_at: new Date().toISOString(),
+        };
+        admins.push(admin);
+      }
+      authUser = {
+        id: admin.id,
+        username: admin.username,
+        role: 'superadmin',
+        email: admin.email,
+        fullName: admin.fullName,
+      };
+    } else if (targetRole === 'admin') {
+      assignedRole = 'admin';
+      let admin = admins.find(a => a.email === email);
+      if (!admin) {
+        const generatedUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || `teacher_${Date.now()}`;
+        admin = {
+          id: admins.length + 1,
+          username: generatedUser,
+          passwordHash: hashPassword('teacher123'),
+          role: 'teacher',
+          fullName: fullName || 'Faculty Educator',
+          email,
+          department: 'Academic Faculty',
+          status: 'active',
+          created_at: new Date().toISOString(),
+        };
+        admins.push(admin);
+      }
+      authUser = {
+        id: admin.id,
+        username: admin.username,
+        role: 'admin',
+        email: admin.email,
+        fullName: admin.fullName,
+      };
+    } else {
+      assignedRole = 'user';
+      let user = users.find(u => u.email === email);
+      if (!user) {
+        const generatedUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || `student_${Date.now()}`;
+        user = {
+          id: users.length ? Math.max(...users.map(u => u.id)) + 1 : 1,
+          username: generatedUser,
+          passwordHash: hashPassword('student123'),
+          created_at: new Date().toISOString(),
+          email,
+          fullName,
+        };
+        users.push(user);
+      }
+      authUser = {
+        id: user.id,
+        username: user.username,
+        role: 'user',
+        email: user.email,
+        fullName: user.fullName,
+      };
+    }
+
+    res.json({
+      success: true,
+      user: authUser,
+      role: assignedRole,
+      message: `Signed in with Google as ${fullName}`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to authenticate Google credential.' });
+  }
 });
 
 // Google OAuth Callback Handler with postMessage
-app.get(['/auth/google/callback', '/auth/google/callback/'], async (req, res) => {
+app.get(['/auth/google/callback', '/auth/google/callback/', '/auth/callback', '/auth/callback/'], async (req, res) => {
   const { code, state, error: oauthError } = req.query;
 
   if (oauthError) {
@@ -983,7 +1125,7 @@ app.get(['/auth/google/callback', '/auth/google/callback/'], async (req, res) =>
       }
     }
 
-    const redirectUri = parsedState.redirectUri || `${req.protocol}://${req.get('host')}/auth/google/callback`;
+    const redirectUri = parsedState.redirectUri || (process.env.APP_URL ? `${process.env.APP_URL}/auth/google/callback` : `${req.protocol}://${req.get('host')}/auth/google/callback`);
 
     // 1. Exchange authorization code for tokens
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -1013,82 +1155,47 @@ app.get(['/auth/google/callback', '/auth/google/callback/'], async (req, res) =>
     const fullName: string = profile.name || email.split('@')[0];
     const targetRole = (parsedState.role as 'user' | 'admin' | 'superadmin') || 'user';
 
-    let authUser: any = null;
-    let assignedRole: 'user' | 'admin' | 'superadmin' = targetRole;
-
-    if (targetRole === 'admin' || targetRole === 'superadmin' || email === '202401040057@mitaoe.ac.in') {
-      if (email === '202401040057@mitaoe.ac.in' || targetRole === 'superadmin') {
-        assignedRole = 'superadmin';
-        let admin = admins.find(a => a.email === email || a.username === 'kongaresanket');
-        if (!admin) {
-          admin = {
-            id: admins.length + 1,
-            username: 'kongaresanket',
-            passwordHash: hashPassword('kongaresanket'),
-            role: 'superadmin',
-            fullName: fullName || 'Sanket Kongare (Root Super Admin)',
-            email,
-            department: 'Institutional Governance',
-            status: 'active',
-          };
-          admins.push(admin);
-        }
-        authUser = {
-          id: admin.id,
-          username: admin.username,
-          role: 'superadmin',
-          email: admin.email,
-          fullName: admin.fullName,
-        };
-      } else {
-        assignedRole = 'admin';
-        let admin = admins.find(a => a.email === email);
-        if (!admin) {
-          const generatedUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || `teacher_${Date.now()}`;
-          admin = {
-            id: admins.length + 1,
-            username: generatedUser,
-            passwordHash: hashPassword('teacher123'),
-            role: 'teacher',
-            fullName: fullName || 'Faculty Educator',
-            email,
-            department: 'General Faculty',
-            status: 'active',
-            created_at: new Date().toISOString(),
-          };
-          admins.push(admin);
-        }
-        authUser = {
-          id: admin.id,
-          username: admin.username,
-          role: 'admin',
-          email: admin.email,
-          fullName: admin.fullName,
-        };
-      }
-    } else {
-      assignedRole = 'user';
-      let user = users.find(u => u.email === email);
-      if (!user) {
-        const generatedUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || `student_${Date.now()}`;
-        user = {
-          id: users.length ? Math.max(...users.map(u => u.id)) + 1 : 1,
-          username: generatedUser,
-          passwordHash: hashPassword('student123'),
-          created_at: new Date().toISOString(),
-          email,
-          fullName,
-        };
-        users.push(user);
-      }
-      authUser = {
-        id: user.id,
-        username: user.username,
-        role: 'user',
-        email: user.email,
-        fullName: user.fullName,
-      };
+    if (targetRole === 'admin' || targetRole === 'superadmin') {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: sans-serif; text-align: center; padding: 40px; background: #fff1f2;">
+            <h2 style="color: #e11d48;">Login Restricted</h2>
+            <p style="color: #64748b;">Teacher and Super Admin accounts cannot log in with Google. Please use username and password credentials.</p>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'GOOGLE_AUTH_ERROR', error: 'Teacher and Super Admin accounts cannot log in with Google. Please use institutional username and password credentials.' }, '*');
+                setTimeout(() => window.close(), 2000);
+              }
+            </script>
+          </body>
+        </html>
+      `);
     }
+
+    let authUser: any = null;
+    const assignedRole = 'user';
+
+    let user = users.find(u => u.email === email);
+    if (!user) {
+      const generatedUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || `student_${Date.now()}`;
+      user = {
+        id: users.length ? Math.max(...users.map(u => u.id)) + 1 : 1,
+        username: generatedUser,
+        passwordHash: hashPassword('student123'),
+        created_at: new Date().toISOString(),
+        email,
+        fullName,
+      };
+      users.push(user);
+    }
+    authUser = {
+      id: user.id,
+      username: user.username,
+      role: 'user',
+      email: user.email,
+      fullName: user.fullName,
+    };
 
     res.send(`
       <!DOCTYPE html>
@@ -1174,6 +1281,12 @@ app.get(['/auth/google/callback', '/auth/google/callback/'], async (req, res) =>
 app.post('/api/auth/google/demo', (req, res) => {
   const { role = 'user', email, name } = req.body;
 
+  if (role === 'admin' || role === 'superadmin') {
+    return res.status(403).json({
+      error: 'Teacher and Super Admin accounts cannot log in with Google. Please use username and password credentials.',
+    });
+  }
+
   if (!email || typeof email !== 'string' || !email.trim()) {
     return res.status(400).json({ error: 'Please enter a valid Google or institutional email address.' });
   }
@@ -1191,15 +1304,15 @@ app.post('/api/auth/google/demo', (req, res) => {
     ? name.trim()
     : formattedDefaultName;
 
-  if (role === 'superadmin' && cleanEmail === '202401040057@mitaoe.ac.in') {
-    let admin = admins.find(a => a.username === 'kongaresanket');
+  if (role === 'superadmin') {
+    let admin = admins.find(a => a.role === 'superadmin');
     return res.json({
       user: {
         id: admin?.id || 1,
-        username: admin?.username || 'kongaresanket',
+        username: admin?.username || 'superadmin',
         role: 'superadmin',
-        email: '202401040057@mitaoe.ac.in',
-        fullName: cleanName || 'Sanket Kongare (Root Super Admin)',
+        email: cleanEmail,
+        fullName: cleanName || 'Super Administrator',
       },
       role: 'superadmin',
     });

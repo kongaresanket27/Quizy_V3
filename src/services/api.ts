@@ -72,11 +72,24 @@ export const api = {
   },
 
   // Google OAuth
-  async getGoogleAuthUrl(role: string = 'user', redirectUri?: string): Promise<{ configured: boolean; url?: string; message?: string }> {
+  async getGoogleAuthUrl(role: string = 'user', redirectUri?: string): Promise<{ configured: boolean; url?: string; message?: string; clientId?: string }> {
     const params = new URLSearchParams({ role });
     if (redirectUri) params.set('redirect_uri', redirectUri);
     const res = await fetch(`${API_BASE}/auth/google/url?${params.toString()}`);
     if (!res.ok) throw new Error('Failed to retrieve Google Auth configuration');
+    return res.json();
+  },
+
+  async googleCredentialLogin(credential: string, role: 'superadmin' | 'admin' | 'user' = 'user'): Promise<{ success: boolean; user: any; role: string; message?: string }> {
+    const res = await fetch(`${API_BASE}/auth/google/credential`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential, role }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to authenticate Google credential');
+    }
     return res.json();
   },
 

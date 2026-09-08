@@ -17,13 +17,15 @@ const AppContent: React.FC = () => {
   const { user, isAdmin, isSuperAdmin, logout } = useAuth();
   const [viewState, setViewState] = useState<AppViewState>('landing');
   const [loginRole, setLoginRole] = useState<'superadmin' | 'admin' | 'user'>('admin');
+  const [loginMode, setLoginMode] = useState<'signin' | 'signup'>('signin');
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeAttempt, setActiveAttempt] = useState<QuizAttempt | null>(null);
   const [appClosedNotice, setAppClosedNotice] = useState(false);
 
   // 1. Role Selection from Landing Screen (Image 1)
-  const handleSelectRole = (role: 'superadmin' | 'admin' | 'user') => {
+  const handleSelectRole = (role: 'superadmin' | 'admin' | 'user', mode: 'signin' | 'signup' = 'signin') => {
     setLoginRole(role);
+    setLoginMode(mode);
     if (role === 'superadmin') {
       if (user && user.role === 'superadmin') {
         setViewState('superadmin');
@@ -119,6 +121,7 @@ const AppContent: React.FC = () => {
       {viewState === 'login' && (
         <LoginScreen
           initialRole={loginRole}
+          initialMode={loginMode}
           onBack={() => setViewState('landing')}
           onSuccess={handleLoginSuccess}
         />
