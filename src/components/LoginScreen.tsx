@@ -17,9 +17,20 @@ import {
   Copy,
   Check,
   X,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+
+interface SavedGoogleAccount {
+  email: string;
+  name: string;
+  role: 'superadmin' | 'admin' | 'user';
+  lastUsed?: string;
+}
 
 interface LoginScreenProps {
   initialRole: 'superadmin' | 'admin' | 'user';
@@ -48,11 +59,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [demoEmail, setDemoEmail] = useState('202401040057@mitaoe.ac.in');
-  const [demoName, setDemoName] = useState('Sanket Kongare');
+  const [googleEmailInput, setGoogleEmailInput] = useState('');
+  const [googleNameInput, setGoogleNameInput] = useState('');
+  const [showAddAccountForm, setShowAddAccountForm] = useState(false);
+  const [showSamplePresets, setShowSamplePresets] = useState(false);
+  const [showDevSetup, setShowDevSetup] = useState(false);
   const [copiedCallback, setCopiedCallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Initialize saved Google accounts on this device
+  const [savedAccounts, setSavedAccounts] = useState<SavedGoogleAccount[]>(() => {
+    try {
+      const stored = localStorage.getItem('quizy_saved_google_accounts');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return [];
+  });
 
   // Listen for OAuth postMessage from Google popup
   useEffect(() => {
@@ -96,7 +124,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           setError('Popup was blocked by browser. Please allow popups for this site to sign in with Google.');
         }
       } else {
-        // Show setup & immediate test modal
+        // Show setup & account chooser modal
         setShowGoogleModal(true);
       }
     } catch (err: any) {
@@ -110,15 +138,36 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     try {
       setGoogleLoading(true);
       setError(null);
-      const chosenEmail = customEmail || demoEmail.trim() || '202401040057@mitaoe.ac.in';
-      const chosenName = customName || demoName.trim() || 'Sanket Kongare';
+      const chosenEmail = (customEmail || googleEmailInput).trim();
+      const chosenName = (customName || googleNameInput).trim();
+
+      if (!chosenEmail) {
+        setError('Please enter your Google or institutional email address.');
+        return;
+      }
 
       const res = await api.googleDemoLogin(role, chosenEmail, chosenName);
       const authData = res.user;
       const assignedRole = (res.role as 'superadmin' | 'admin' | 'user') || role;
 
+      // Remember this account on device for easy 1-click return
+      const savedItem: SavedGoogleAccount = {
+        email: chosenEmail.toLowerCase(),
+        name: authData?.fullName || chosenName || chosenEmail.split('@')[0],
+        role: assignedRole,
+        lastUsed: new Date().toISOString(),
+      };
+      setSavedAccounts(prev => {
+        const filtered = prev.filter(a => a.email.toLowerCase() !== savedItem.email);
+        const updated = [savedItem, ...filtered].slice(0, 6);
+        try {
+          localStorage.setItem('quizy_saved_google_accounts', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+
       setShowGoogleModal(false);
-      setSuccessMessage(`Signed in via Google: ${chosenEmail}`);
+      setSuccessMessage(`Signed in as ${authData?.fullName || chosenName} (${chosenEmail})`);
       setAuthUser({
         id: authData?.id || 1,
         username: authData?.username || chosenEmail.split('@')[0],
@@ -126,12 +175,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       });
       setTimeout(() => {
         onSuccess(assignedRole);
-      }, 500);
+      }, 400);
     } catch (err: any) {
       setError(err.message || 'Google sign-in failed');
     } finally {
       setGoogleLoading(false);
     }
+  };
+
+  const handleRemoveSavedAccount = (emailToRemove: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSavedAccounts(prev => {
+      const updated = prev.filter(a => a.email.toLowerCase() !== emailToRemove.toLowerCase());
+      try {
+        localStorage.setItem('quizy_saved_google_accounts', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
   };
 
   const handleRoleChange = (newRole: 'superadmin' | 'admin' | 'user') => {
@@ -405,50 +465,48 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
           )}
 
-          {/* Google Sign-In Primary Action (Only for Student Portal) */}
-          {role === 'user' && (
-            <div className="space-y-3">
-              <button
-                type="button"
-                disabled={googleLoading || loading}
-                onClick={handleGoogleSignIn}
-                className="w-full py-2.5 px-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs sm:text-sm shadow-2xs hover:shadow-xs transition-all flex items-center justify-center gap-3 cursor-pointer group disabled:opacity-50"
-              >
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-                <span>
-                  {googleLoading
-                    ? 'Connecting to Google...'
-                    : mode === 'signup'
-                    ? 'Sign up with Google (Student)'
-                    : 'Continue with Google (Student)'}
-                </span>
-              </button>
+          {/* Google Sign-In Primary Action */}
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled={googleLoading || loading}
+              onClick={handleGoogleSignIn}
+              className="w-full py-2.5 px-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs sm:text-sm shadow-2xs hover:shadow-xs transition-all flex items-center justify-center gap-3 cursor-pointer group disabled:opacity-50"
+            >
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <span>
+                {googleLoading
+                  ? 'Connecting to Google...'
+                  : mode === 'signup'
+                  ? `Sign up with Google (${role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Teacher' : 'Student'})`
+                  : `Continue with Google (${role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Teacher' : 'Student'})`}
+              </span>
+            </button>
 
-              <div className="relative flex items-center justify-center">
-                <div className="border-t border-slate-200 w-full"></div>
-                <span className="bg-white px-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 absolute">
-                  or continue with credentials
-                </span>
-              </div>
+            <div className="relative flex items-center justify-center">
+              <div className="border-t border-slate-200 w-full"></div>
+              <span className="bg-white px-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 absolute">
+                or continue with credentials
+              </span>
             </div>
-          )}
+          </div>
 
           {/* Form Inputs */}
           <form onSubmit={handleSubmit} className="space-y-3.5">
@@ -705,131 +763,272 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </div>
             </div>
 
-            {/* Quick One-Click Instant Sign-In */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  ⚡ Instant One-Click Sign In
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
-                  Ready Now
-                </span>
+            {/* Error Feedback in Modal */}
+            {error && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                <span>{error}</span>
               </div>
+            )}
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200">
-                  <div className={`w-7 h-7 rounded-full font-bold flex items-center justify-center text-xs shrink-0 ${
-                    role === 'superadmin'
-                      ? 'bg-rose-50 text-rose-700'
-                      : role === 'admin'
-                      ? 'bg-slate-100 text-slate-800'
-                      : 'bg-indigo-50 text-indigo-700'
-                  }`}>
-                    {role === 'superadmin' ? 'SK' : role === 'admin' ? 'RS' : 'SK'}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-slate-900 truncate">
-                      {role === 'superadmin'
-                        ? 'Sanket Kongare'
-                        : role === 'admin'
-                        ? 'Prof. Rajesh Sharma'
-                        : 'Sanket Kongare'}
-                    </p>
-                    <p className="text-[11px] text-slate-500 truncate">
-                      {role === 'superadmin'
-                        ? '202401040057@mitaoe.ac.in'
-                        : role === 'admin'
-                        ? 'teacher1@quizy.edu'
-                        : '202401040057@mitaoe.ac.in'}
-                    </p>
-                  </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
-                    role === 'superadmin'
-                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                      : role === 'admin'
-                      ? 'bg-slate-100 text-slate-800 border border-slate-200'
-                      : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                  }`}>
-                    {role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Teacher' : 'Student'}
+            {/* 1. Saved Accounts on Device (If Any Exist) */}
+            {savedAccounts.length > 0 && (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Choose an account
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {savedAccounts.length} saved on device
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  disabled={googleLoading}
-                  onClick={() =>
-                    handleInstantDemoGoogleSignIn(
-                      role === 'superadmin'
-                        ? '202401040057@mitaoe.ac.in'
-                        : role === 'admin'
-                        ? 'teacher1@quizy.edu'
-                        : '202401040057@mitaoe.ac.in',
-                      role === 'superadmin'
-                        ? 'Sanket Kongare'
-                        : role === 'admin'
-                        ? 'Prof. Rajesh Sharma'
-                        : 'Sanket Kongare'
-                    )
-                  }
-                  className={`w-full py-2.5 px-4 rounded-xl text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${
-                    role === 'superadmin'
-                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
-                      : role === 'admin'
-                      ? 'bg-slate-900 hover:bg-slate-800 shadow-slate-200'
-                      : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>
-                    {role === 'superadmin'
-                      ? 'Continue as Sanket Kongare (Super Admin)'
-                      : role === 'admin'
-                      ? 'Continue as Prof. Rajesh Sharma (Teacher)'
-                      : 'Continue as Sanket Kongare (Student)'}
-                  </span>
-                </button>
-              </div>
-            </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-0.5">
+                  {savedAccounts.map((acc) => (
+                    <div
+                      key={acc.email}
+                      onClick={() => handleInstantDemoGoogleSignIn(acc.email, acc.name)}
+                      className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/40 transition-all cursor-pointer group shadow-2xs"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                          {acc.name
+                            ? acc.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                            : 'G'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-xs text-slate-900 truncate group-hover:text-indigo-900">
+                            {acc.name || acc.email.split('@')[0]}
+                          </p>
+                          <p className="text-[11px] text-slate-500 truncate">{acc.email}</p>
+                        </div>
+                      </div>
 
-            {/* Production Setup Instructions */}
-            <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-2.5 text-xs text-slate-700">
-              <div className="flex items-center justify-between font-bold text-amber-900">
-                <span className="flex items-center gap-1.5">
-                  <Shield className="w-4 h-4 text-amber-600" />
-                  Live Google Cloud OAuth Setup
-                </span>
-                <span className="text-[10px] text-amber-700 font-medium">Optional for Production</span>
-              </div>
-              <p className="text-slate-600 text-[11px] leading-relaxed">
-                To connect your custom Google OAuth Client ID for external popups, configure these settings:
-              </p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
+                          acc.role === 'superadmin'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                            : acc.role === 'admin'
+                            ? 'bg-slate-100 text-slate-800 border border-slate-200'
+                            : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                        }`}>
+                          {acc.role === 'superadmin' ? 'Super Admin' : acc.role === 'admin' ? 'Teacher' : 'Student'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemoveSavedAccount(acc.email, e)}
+                          title="Remove from device"
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-              <div className="space-y-1.5 font-mono text-[10px]">
-                <div className="p-2 rounded-lg bg-white border border-amber-200/70 flex items-center justify-between gap-2">
-                  <span className="truncate text-slate-700">
-                    {typeof window !== 'undefined' ? `${window.location.origin}/auth/google/callback` : '/auth/google/callback'}
-                  </span>
+                <div className="pt-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (typeof window !== 'undefined') {
-                        navigator.clipboard.writeText(`${window.location.origin}/auth/google/callback`);
-                        setCopiedCallback(true);
-                        setTimeout(() => setCopiedCallback(false), 2000);
-                      }
-                    }}
-                    className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer shrink-0"
-                    title="Copy Callback URL"
+                    onClick={() => setShowAddAccountForm(!showAddAccountForm)}
+                    className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-300 hover:border-indigo-400 text-slate-600 hover:text-indigo-600 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer bg-slate-50/50 hover:bg-indigo-50/30"
                   >
-                    {copiedCallback ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{showAddAccountForm ? 'Hide form' : 'Use another Google / College account'}</span>
                   </button>
                 </div>
               </div>
+            )}
 
-              <div className="text-[11px] text-slate-600 pt-1 space-y-1">
-                <p>1. In Google Cloud Console, add the Callback URL above to <strong>Authorized redirect URIs</strong>.</p>
-                <p>2. Set <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> in the project settings.</p>
-              </div>
+            {/* 2. Enter Custom Google or Institutional Email Form */}
+            {(savedAccounts.length === 0 || showAddAccountForm) && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleInstantDemoGoogleSignIn(googleEmailInput, googleNameInput);
+                }}
+                className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                    Enter Your Google or Institutional Account
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
+                    Instant Sign-In
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Email Address <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={googleEmailInput}
+                      onChange={(e) => setGoogleEmailInput(e.target.value)}
+                      placeholder="e.g. 20240104xxxx@mitaoe.ac.in or yourname@gmail.com"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Full Name <span className="text-slate-400 font-normal">(optional, auto-derived from email)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={googleNameInput}
+                      onChange={(e) => setGoogleNameInput(e.target.value)}
+                      placeholder="e.g. Rahul Sharma"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={googleLoading || !googleEmailInput.trim()}
+                    className={`w-full py-2.5 px-4 rounded-xl text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${
+                      role === 'superadmin'
+                        ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
+                        : role === 'admin'
+                        ? 'bg-slate-900 hover:bg-slate-800 shadow-slate-200'
+                        : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>
+                      {googleLoading
+                        ? 'Signing in...'
+                        : `Continue with Google as ${role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Teacher' : 'Student'}`}
+                    </span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* 3. Sample Demo Accounts Accordion (For Quick Testing) */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowSamplePresets(!showSamplePresets)}
+                className="w-full flex items-center justify-between text-[11px] font-bold text-slate-500 hover:text-slate-800 transition-colors py-1 cursor-pointer select-none"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                  Quick Demo Test Profiles
+                </span>
+                {showSamplePresets ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+
+              {showSamplePresets && (
+                <div className="mt-2 p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 animate-in fade-in">
+                  <p className="text-[10px] text-slate-500 leading-tight">
+                    Pre-configured sample profiles for rapid testing:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleInstantDemoGoogleSignIn('202401040057@mitaoe.ac.in', 'Sanket Kongare')}
+                      className="p-2.5 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/30 text-left transition-all cursor-pointer"
+                    >
+                      <p className="font-bold text-slate-800 text-[11px] truncate">Sanket Kongare</p>
+                      <p className="text-[10px] text-slate-400 truncate">202401040057@mitaoe.ac.in</p>
+                      <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">
+                        Student Preset
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleInstantDemoGoogleSignIn('teacher1@quizy.edu', 'Prof. Rajesh Sharma')}
+                      className="p-2.5 rounded-xl border border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-100 text-left transition-all cursor-pointer"
+                    >
+                      <p className="font-bold text-slate-800 text-[11px] truncate">Prof. Rajesh Sharma</p>
+                      <p className="text-[10px] text-slate-400 truncate">teacher1@quizy.edu</p>
+                      <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                        Teacher Preset
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleInstantDemoGoogleSignIn('student.demo@mitaoe.ac.in', 'Ananya Deshmukh')}
+                      className="p-2.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/30 text-left transition-all cursor-pointer"
+                    >
+                      <p className="font-bold text-slate-800 text-[11px] truncate">Ananya Deshmukh</p>
+                      <p className="text-[10px] text-slate-400 truncate">student.demo@mitaoe.ac.in</p>
+                      <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">
+                        Student Preset
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleInstantDemoGoogleSignIn('202401040057@mitaoe.ac.in', 'Sanket Kongare')}
+                      className="p-2.5 rounded-xl border border-slate-200 bg-white hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer"
+                    >
+                      <p className="font-bold text-slate-800 text-[11px] truncate">Root Super Admin</p>
+                      <p className="text-[10px] text-slate-400 truncate">202401040057@mitaoe.ac.in</p>
+                      <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700">
+                        Super Admin
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 4. Production Setup Instructions (Collapsed by default) */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowDevSetup(!showDevSetup)}
+                className="w-full flex items-center justify-between text-[11px] font-bold text-amber-800 hover:text-amber-900 transition-colors py-1 cursor-pointer select-none"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-amber-600" />
+                  Live Google Cloud OAuth Setup (Production)
+                </span>
+                {showDevSetup ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+
+              {showDevSetup && (
+                <div className="mt-2 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/90 space-y-2 text-xs text-slate-700 animate-in fade-in">
+                  <p className="text-slate-600 text-[11px] leading-relaxed">
+                    To connect your live Google Cloud OAuth credentials for native external popups:
+                  </p>
+
+                  <div className="space-y-1.5 font-mono text-[10px]">
+                    <div className="p-2 rounded-lg bg-white border border-amber-200/70 flex items-center justify-between gap-2">
+                      <span className="truncate text-slate-700">
+                        {typeof window !== 'undefined' ? `${window.location.origin}/auth/google/callback` : '/auth/google/callback'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof window !== 'undefined') {
+                            navigator.clipboard.writeText(`${window.location.origin}/auth/google/callback`);
+                            setCopiedCallback(true);
+                            setTimeout(() => setCopiedCallback(false), 2000);
+                          }
+                        }}
+                        className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer shrink-0"
+                        title="Copy Callback URL"
+                      >
+                        {copiedCallback ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] text-slate-600 pt-1 space-y-1">
+                    <p>1. In Google Cloud Console, add the Callback URL above to <strong>Authorized redirect URIs</strong>.</p>
+                    <p>2. Set <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> in project environment variables.</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

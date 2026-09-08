@@ -1172,9 +1172,26 @@ app.get(['/auth/google/callback', '/auth/google/callback/'], async (req, res) =>
 
 // Demo Google Instant Sign-In for testing without pre-configured cloud secrets
 app.post('/api/auth/google/demo', (req, res) => {
-  const { role = 'user', email = '202401040057@mitaoe.ac.in', name = 'Sanket Kongare' } = req.body;
+  const { role = 'user', email, name } = req.body;
 
-  if (role === 'superadmin' || (email === '202401040057@mitaoe.ac.in' && role === 'superadmin')) {
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    return res.status(400).json({ error: 'Please enter a valid Google or institutional email address.' });
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  
+  // Format fallback display name from email (e.g. 'john.doe' -> 'John Doe')
+  const emailPrefix = cleanEmail.split('@')[0] || 'student';
+  const formattedDefaultName = emailPrefix
+    .replace(/[._-]+/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase())
+    .trim() || 'Student User';
+
+  const cleanName = (name && typeof name === 'string' && name.trim().length > 0)
+    ? name.trim()
+    : formattedDefaultName;
+
+  if (role === 'superadmin' && cleanEmail === '202401040057@mitaoe.ac.in') {
     let admin = admins.find(a => a.username === 'kongaresanket');
     return res.json({
       user: {
@@ -1182,28 +1199,30 @@ app.post('/api/auth/google/demo', (req, res) => {
         username: admin?.username || 'kongaresanket',
         role: 'superadmin',
         email: '202401040057@mitaoe.ac.in',
-        fullName: 'Sanket Kongare (Root Super Admin)',
+        fullName: cleanName || 'Sanket Kongare (Root Super Admin)',
       },
       role: 'superadmin',
     });
   }
 
   if (role === 'admin') {
-    let admin = admins.find(a => a.email === email);
+    let admin = admins.find(a => Boolean(a.email && a.email.toLowerCase() === cleanEmail));
     if (!admin) {
-      const generatedUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || 'faculty_educator';
+      const generatedUser = emailPrefix.replace(/[^a-zA-Z0-9_]/g, '') || `teacher_${Date.now()}`;
       admin = {
         id: admins.length + 1,
         username: generatedUser,
         passwordHash: hashPassword('teacher123'),
         role: 'teacher',
-        fullName: name || 'Prof. Sanket Kongare',
-        email,
-        department: 'Engineering & Computing',
+        fullName: cleanName.startsWith('Prof.') || cleanName.startsWith('Dr.') ? cleanName : `Prof. ${cleanName}`,
+        email: cleanEmail,
+        department: 'Academic Faculty',
         status: 'active',
         created_at: new Date().toISOString(),
       };
       admins.push(admin);
+    } else if (cleanName && cleanName !== formattedDefaultName) {
+      admin.fullName = cleanName;
     }
     return res.json({
       user: {
@@ -1217,20 +1236,23 @@ app.post('/api/auth/google/demo', (req, res) => {
     });
   }
 
-  // Student role
-  let user = users.find(u => u.email === email);
+  // Student role - any student can sign in with their own Google or institutional email
+  let user = users.find(u => Boolean(u.email && u.email.toLowerCase() === cleanEmail));
   if (!user) {
-    const generatedUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || 'sanket_student';
+    const generatedUser = emailPrefix.replace(/[^a-zA-Z0-9_]/g, '') || `student_${Date.now()}`;
     user = {
       id: users.length ? Math.max(...users.map(u => u.id)) + 1 : 1,
       username: generatedUser,
       passwordHash: hashPassword('student123'),
       created_at: new Date().toISOString(),
-      email,
-      fullName: name || 'Sanket Kongare',
+      email: cleanEmail,
+      fullName: cleanName,
     };
     users.push(user);
+  } else if (cleanName && cleanName !== formattedDefaultName) {
+    user.fullName = cleanName;
   }
+
   return res.json({
     user: {
       id: user.id,

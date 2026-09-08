@@ -110,22 +110,17 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onSelectRole, onCl
       <main className="w-full max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-10 flex-1 flex flex-col justify-center space-y-10">
         
         {/* Central Hero Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-4">
+        <div className="text-center max-w-4xl mx-auto space-y-4">
           {/* Welcome Badge Pill */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50/90 border border-indigo-100/90 text-indigo-700 text-xs font-bold tracking-wide shadow-2xs">
             <span>👋</span>
             <span>Welcome to QUIZY</span>
           </div>
 
-          {/* Figma Hero Title: Learning made fun & easy */}
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 font-display tracking-tight leading-tight">
-            Learning made <span className="text-indigo-600">fun</span> <span className="text-indigo-600">&</span> <span className="text-rose-500">easy</span>
+          {/* Hero Title: Learning made fun and easy in a single line */}
+          <h2 className="text-2xl xs:text-3xl sm:text-5xl md:text-6xl font-black text-slate-900 font-display tracking-tight leading-tight whitespace-nowrap">
+            Learning made <span className="text-indigo-600">fun</span> and <span className="text-rose-500">easy</span>
           </h2>
-
-          {/* Party Popper Emoji */}
-          <div className="text-3xl sm:text-4xl select-none pt-1">
-            🎉
-          </div>
 
           {/* Hero Subtitle & App Description */}
           <p className="text-xs sm:text-sm md:text-base text-slate-600 font-medium max-w-2xl mx-auto leading-relaxed">
