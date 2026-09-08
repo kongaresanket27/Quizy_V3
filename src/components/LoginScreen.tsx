@@ -12,7 +12,6 @@ import {
   UserPlus,
   LogIn,
   KeyRound,
-  ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -49,6 +48,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   // Listen for OAuth postMessage from Google popup
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      // Accept message from popup if valid
       if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
         const { user: authPayload, role: assignedRole } = event.data;
         const finalRole = assignedRole || role;
@@ -57,12 +57,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           id: authPayload?.id || 1,
           username: authPayload?.username || authPayload?.email?.split('@')[0] || 'google_user',
           role: finalRole,
+          email: authPayload?.email,
+          fullName: authPayload?.fullName,
         });
+        setGoogleLoading(false);
         setTimeout(() => {
           onSuccess(finalRole);
         }, 500);
       } else if (event.data?.type === 'GOOGLE_AUTH_ERROR') {
-        setError(`Google Sign-In failed: ${event.data.error || 'Authentication was cancelled or failed'}`);
+        setError(`Google Sign-In failed: ${event.data.error || 'Authentication was cancelled or failed.'}`);
         setGoogleLoading(false);
       }
     };
@@ -95,6 +98,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   id: res.user?.id || 1,
                   username: res.user?.username || 'google_user',
                   role: 'user',
+                  email: res.user?.email,
+                  fullName: res.user?.fullName,
                 });
                 setTimeout(() => {
                   onSuccess('user');
@@ -108,7 +113,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           });
         }
       } catch (e) {
-        // Ignore initialization error; standard popup OAuth remains available
+        // Fallback to standard OAuth popup
       }
     };
 
@@ -118,7 +123,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     };
   }, [role, onSuccess, setAuthUser]);
 
-  // Standard 1-Click Google Sign-In Handler (available only for Student role)
+  // Google Sign-In Handler: Launches real Google OAuth authorization popup directly
   const handleGoogleSignIn = async () => {
     if (role !== 'user') {
       setError('Teacher and Super Admin accounts cannot log in with Google. Please use username and password credentials.');
@@ -126,40 +131,39 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
     setError(null);
     setSuccessMessage(null);
+    setGoogleLoading(true);
+
     try {
-      setGoogleLoading(true);
+      // 1. Fetch OAuth URL from server configured for this domain
       const redirectUri = `${window.location.origin}/auth/google/callback`;
       const config = await api.getGoogleAuthUrl('user', redirectUri);
 
-      if (config.url) {
-        // Direct Google OAuth Popup
-        const popup = window.open(
-          config.url,
-          'google_oauth_popup',
-          'width=550,height=680,scrollbars=yes,status=yes'
-        );
-        if (!popup) {
-          setError('Google Sign-In popup was blocked by your browser. Please allow popups for this site to continue.');
-          setGoogleLoading(false);
-        } else {
-          // Monitor popup closure if user closes it manually
-          const timer = setInterval(() => {
-            if (popup.closed) {
-              clearInterval(timer);
-              setGoogleLoading(false);
-            }
-          }, 1000);
-        }
-      } else if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
-        (window as any).google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            setGoogleLoading(false);
-          }
-        });
-      } else {
-        setError('Google Sign-In is currently unavailable. Please sign in with your username and password below.');
+      if (!config.url) {
+        setError('Google Sign-In is not configured. Please verify environment settings.');
         setGoogleLoading(false);
+        return;
       }
+
+      // 2. Open Google OAuth provider URL directly in popup
+      const authWindow = window.open(
+        config.url,
+        'google_oauth_popup',
+        'width=550,height=680,scrollbars=yes,status=yes'
+      );
+
+      if (!authWindow) {
+        setError('Popup was blocked by your browser. Please allow popups for this site to sign in with Google.');
+        setGoogleLoading(false);
+        return;
+      }
+
+      // Track popup closure
+      const timer = setInterval(() => {
+        if (authWindow.closed) {
+          clearInterval(timer);
+          setGoogleLoading(false);
+        }
+      }, 1000);
     } catch (err: any) {
       setError(err.message || 'Failed to initiate Google Sign-In.');
       setGoogleLoading(false);

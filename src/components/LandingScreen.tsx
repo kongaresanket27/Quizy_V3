@@ -44,36 +44,38 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onSelectRole, onCl
   const displayAttempts = stats?.total_attempts ?? 1;
 
   return (
-    <div className="min-h-screen bg-[#fafbfc] text-slate-800 flex flex-col justify-between relative overflow-x-hidden selection:bg-indigo-100 selection:text-indigo-900 font-sans">
+    <div className="min-h-screen bg-[#fafbfc] text-slate-800 flex flex-col relative selection:bg-indigo-100 selection:text-indigo-900 font-sans">
       
-      {/* Background Subtle Gradient Accents */}
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-gradient-to-br from-indigo-100/40 via-violet-50/30 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-gradient-to-tl from-rose-100/30 via-pink-50/20 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
+      {/* Background Subtle Gradient Accents safely contained without causing vertical overflow */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute -top-24 -left-24 w-[500px] h-[500px] bg-gradient-to-br from-indigo-100/40 via-violet-50/30 to-transparent rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 w-[550px] h-[550px] bg-gradient-to-tl from-rose-100/30 via-pink-50/20 to-transparent rounded-full blur-3xl" />
+      </div>
 
       {/* Top Header / Navigation Bar */}
-      <header className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-3.5 sm:py-4 flex items-center justify-between">
+      <header className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-5 sm:py-6 flex items-center justify-between">
         {/* Left: Brand Logo & Title */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3.5">
           {/* Glowing purple circular brain logo */}
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#8B5CF6] via-[#A855F7] to-[#EC4899] text-white flex items-center justify-center shadow-md shadow-purple-500/25 text-xl select-none">
+          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#8B5CF6] via-[#A855F7] to-[#EC4899] text-white flex items-center justify-center shadow-md shadow-purple-500/25 text-2xl select-none">
             <span role="img" aria-label="brain">🧠</span>
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none font-display">
               QUIZY
             </h1>
-            <p className="text-[11px] font-semibold text-slate-400 mt-0.5 tracking-wide">
+            <p className="text-[12px] font-semibold text-slate-400 mt-0.5 tracking-wide">
               Smart Quiz Platform
             </p>
           </div>
         </div>
 
         {/* Right Header Navigation: Help, Sign In, Create Account */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5">
+        <div className="flex items-center gap-3 sm:gap-4">
           <button
             type="button"
             onClick={() => setShowHelpModal(true)}
-            className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-colors px-2 py-1 cursor-pointer"
+            className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-colors px-2 py-1.5 cursor-pointer"
           >
             Help
           </button>
@@ -81,7 +83,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onSelectRole, onCl
           <button
             type="button"
             onClick={() => onSelectRole('user', 'signin')}
-            className="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm shadow-2xs transition-all cursor-pointer"
+            className="px-4.5 sm:px-5.5 py-2 rounded-full border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm shadow-2xs transition-all cursor-pointer"
           >
             Sign In
           </button>
@@ -89,111 +91,111 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onSelectRole, onCl
           <button
             type="button"
             onClick={() => onSelectRole('user', 'signup')}
-            className="px-4.5 sm:px-5.5 py-1.5 sm:py-2 rounded-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/35 transition-all cursor-pointer"
+            className="px-5 sm:px-6 py-2 rounded-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/35 transition-all cursor-pointer"
           >
             Create Account
           </button>
         </div>
       </header>
 
-      {/* Main Hero & Content Section */}
-      <main className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-3 sm:py-5 flex-1 flex flex-col justify-center space-y-7 sm:space-y-8">
+      {/* Main Content: Natural, comfortable spacing with proper hierarchy */}
+      <main className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-6 sm:py-10 flex-1 flex flex-col justify-center space-y-12">
         
         {/* Central Hero Header */}
-        <div className="text-center max-w-4xl mx-auto space-y-3">
+        <div className="text-center max-w-4xl mx-auto space-y-4">
           {/* Welcome Badge Pill */}
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-50/90 border border-slate-200/80 text-slate-700 text-xs font-semibold shadow-2xs">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/90 border border-slate-200/80 text-slate-700 text-xs font-semibold shadow-2xs">
             <span>👋</span>
             <span>Welcome to QUIZY</span>
           </div>
 
           {/* Hero Title */}
-          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black text-slate-900 font-display tracking-tight leading-tight">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 font-display tracking-tight leading-tight">
             Learning made <span className="text-[#4F46E5]">fun</span> and <span className="text-[#F43F5E]">easy</span>
           </h2>
 
           {/* Hero Subtitle & Description */}
-          <p className="text-xs sm:text-sm md:text-base text-slate-600 font-normal max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base text-slate-600 font-normal max-w-2xl mx-auto leading-relaxed">
             QUIZY is an intelligent assessment and examination platform for students, educators, and institutions. Empowering classrooms with automated question authoring, rigorous STEM &amp; Mathematics problem generation, real-time proctoring integrity, and instant performance diagnostics.
           </p>
 
-          {/* Key Feature Badges (3 Pill Tags matching screenshot) */}
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs font-medium text-slate-600">
-            <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
+          {/* Key Feature Badges */}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2 text-xs font-medium text-slate-600">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-slate-200/80 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-[#10B981]"></span>
               AI &amp; Procedural Question Bank
             </span>
-            <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-slate-200/80 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-[#6366F1]"></span>
               Real-time Exam Proctoring
             </span>
-            <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-slate-200/80 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
               Instant Step-by-Step Solutions
             </span>
           </div>
         </div>
 
-        {/* 4 Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4 max-w-4xl mx-auto w-full">
+        {/* 4 Stats Cards with generous, realistic layout */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5 max-w-4xl mx-auto w-full">
           {/* Card 1: Quizzes Available */}
-          <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs text-center hover:shadow-md hover:border-indigo-100 transition-all">
-            <div className="text-xl sm:text-2xl mb-1">📋</div>
+          <div className="bg-white border border-slate-200/70 rounded-3xl p-6 shadow-xs text-center hover:shadow-md hover:border-indigo-100 transition-all">
+            <div className="text-2xl sm:text-3xl mb-1.5">📋</div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900 font-display">
               {loadingStats ? '5' : displayQuizzes}
             </div>
-            <div className="text-[11px] sm:text-xs font-semibold text-slate-400 mt-0.5">Quizzes Available</div>
+            <div className="text-xs font-semibold text-slate-400 mt-1">Quizzes Available</div>
           </div>
 
           {/* Card 2: Students Learning */}
-          <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs text-center hover:shadow-md hover:border-indigo-100 transition-all">
-            <div className="text-xl sm:text-2xl mb-1">🎓</div>
+          <div className="bg-white border border-slate-200/70 rounded-3xl p-6 shadow-xs text-center hover:shadow-md hover:border-indigo-100 transition-all">
+            <div className="text-2xl sm:text-3xl mb-1.5">🎓</div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900 font-display">
               {loadingStats ? '20' : displayStudents}
             </div>
-            <div className="text-[11px] sm:text-xs font-semibold text-slate-400 mt-0.5">Students Learning</div>
+            <div className="text-xs font-semibold text-slate-400 mt-1">Students Learning</div>
           </div>
 
           {/* Card 3: Average Score */}
-          <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs text-center hover:shadow-md hover:border-indigo-100 transition-all">
-            <div className="text-xl sm:text-2xl mb-1">⭐</div>
+          <div className="bg-white border border-slate-200/70 rounded-3xl p-6 shadow-xs text-center hover:shadow-md hover:border-indigo-100 transition-all">
+            <div className="text-2xl sm:text-3xl mb-1.5">⭐</div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900 font-display">
               {loadingStats ? '87%' : displayAvgScore}
             </div>
-            <div className="text-[11px] sm:text-xs font-semibold text-slate-400 mt-0.5">Average Score</div>
+            <div className="text-xs font-semibold text-slate-400 mt-1">Average Score</div>
           </div>
 
           {/* Card 4: Total Attempts */}
-          <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs text-center hover:shadow-md hover:border-indigo-100 transition-all">
-            <div className="text-xl sm:text-2xl mb-1">🔥</div>
+          <div className="bg-white border border-slate-200/70 rounded-3xl p-6 shadow-xs text-center hover:shadow-md hover:border-indigo-100 transition-all">
+            <div className="text-2xl sm:text-3xl mb-1.5">🔥</div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900 font-display">
               {loadingStats ? '1' : displayAttempts}
             </div>
-            <div className="text-[11px] sm:text-xs font-semibold text-slate-400 mt-0.5">Total Attempts</div>
+            <div className="text-xs font-semibold text-slate-400 mt-1">Total Attempts</div>
           </div>
         </div>
 
         {/* Section: Who are you today? 👇 */}
-        <div className="max-w-4xl mx-auto w-full space-y-4 pt-1">
+        <div className="max-w-4xl mx-auto w-full space-y-6 pt-2">
           <div className="text-center">
-            <h3 className="text-xl sm:text-2xl font-black text-slate-900 font-display tracking-tight flex items-center justify-center gap-2">
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 font-display tracking-tight flex items-center justify-center gap-2">
               <span>Who are you today?</span>
               <span>👇</span>
             </h3>
           </div>
 
-          {/* Exactly TWO Portal Cards: Student and Teacher (Matching Image 1) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 w-full">
+          {/* Exactly TWO Portal Cards: Student and Teacher */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
             
             {/* Card 1: Student Card */}
-            <div className="bg-white border-2 border-[#6366f1] rounded-[28px] sm:rounded-[32px] p-6 sm:p-7 flex flex-col justify-between shadow-xs hover:shadow-xl transition-all duration-200">
-              <div className="space-y-3.5">
+            <div className="bg-white border-2 border-[#6366f1] rounded-[32px] p-7 sm:p-8 flex flex-col justify-between shadow-xs hover:shadow-xl transition-all duration-200">
+              <div className="space-y-4">
                 {/* Header Row: Icon + Badge */}
                 <div className="flex items-center justify-between">
-                  <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shadow-2xs">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl shadow-2xs">
                     🎓
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-[#EEF2FF] text-[#4F46E5] text-[10.5px] font-bold tracking-wider uppercase">
+                  <span className="px-3.5 py-1.5 rounded-full bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-bold tracking-wider uppercase">
                     STUDENTS &amp; LEARNERS
                   </span>
                 </div>
@@ -203,13 +205,13 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onSelectRole, onCl
                   <h4 className="text-2xl sm:text-3xl font-black text-[#4F46E5] tracking-tight font-display">
                     I'm a Student
                   </h4>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1.5 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed">
                     Take competitive practice tests, inspect answer keys with step-by-step explanations, get instant AI coaching, and download official PDF scorecards.
                   </p>
                 </div>
 
                 {/* 3 Bullet Features */}
-                <div className="space-y-2 pt-1 text-xs sm:text-[13px] text-slate-600 font-medium">
+                <div className="space-y-2.5 pt-2 text-xs sm:text-[13px] text-slate-600 font-medium">
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                     <span>Instant answer keys &amp; step-by-step explanations</span>
@@ -229,7 +231,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onSelectRole, onCl
               <button
                 type="button"
                 onClick={() => onSelectRole('user', 'signin')}
-                className="w-full mt-5 py-3 px-5 rounded-2xl bg-[#4338CA] hover:bg-[#3730A3] text-white font-bold text-sm sm:text-base shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full mt-7 py-3.5 px-6 rounded-2xl bg-[#4338CA] hover:bg-[#3730A3] text-white font-bold text-sm sm:text-base shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>Continue as Student</span>
                 <ArrowRight className="w-4 h-4" />
@@ -237,14 +239,14 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onSelectRole, onCl
             </div>
 
             {/* Card 2: Teacher Card */}
-            <div className="bg-white border border-slate-200/90 rounded-[28px] sm:rounded-[32px] p-6 sm:p-7 flex flex-col justify-between shadow-xs hover:shadow-xl transition-all duration-200">
-              <div className="space-y-3.5">
+            <div className="bg-white border border-slate-200/90 rounded-[32px] p-7 sm:p-8 flex flex-col justify-between shadow-xs hover:shadow-xl transition-all duration-200">
+              <div className="space-y-4">
                 {/* Header Row: Icon + Badge */}
                 <div className="flex items-center justify-between">
-                  <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center text-xl shadow-2xs">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center text-2xl shadow-2xs">
                     👨‍🏫
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-[10.5px] font-bold tracking-wider uppercase">
+                  <span className="px-3.5 py-1.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold tracking-wider uppercase">
                     FACULTY &amp; TEACHERS
                   </span>
                 </div>
@@ -254,13 +256,13 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onSelectRole, onCl
                   <h4 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-display">
                     I'm a Teacher
                   </h4>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1.5 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed">
                     Build and manage question banks, trigger automated AI question generation, monitor candidate exam sessions, and inspect proctoring audits.
                   </p>
                 </div>
 
                 {/* 3 Bullet Features */}
-                <div className="space-y-2 pt-1 text-xs sm:text-[13px] text-slate-600 font-medium">
+                <div className="space-y-2.5 pt-2 text-xs sm:text-[13px] text-slate-600 font-medium">
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
                     <span>AI Question Generator across all curriculum topics</span>
@@ -280,7 +282,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onSelectRole, onCl
               <button
                 type="button"
                 onClick={() => onSelectRole('admin', 'signin')}
-                className="w-full mt-5 py-3 px-5 rounded-2xl bg-[#0f172a] hover:bg-slate-800 text-white font-bold text-sm sm:text-base shadow-md shadow-slate-900/15 hover:shadow-slate-900/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full mt-7 py-3.5 px-6 rounded-2xl bg-[#0f172a] hover:bg-slate-800 text-white font-bold text-sm sm:text-base shadow-md shadow-slate-900/15 hover:shadow-slate-900/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>Continue as Teacher</span>
                 <ArrowRight className="w-4 h-4" />
@@ -291,26 +293,28 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onSelectRole, onCl
         </div>
       </main>
 
-      {/* Slim, Compact Footer (Matching Image 1 without consuming extra vertical space) */}
-      <footer className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-3 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-400 font-medium mt-3 sm:mt-4">
-        <div className="flex items-center gap-2">
-          <span>© 2026 kongaresanket_quizy • All rights reserved.</span>
-        </div>
+      {/* Clean, Grounded Footer: Attached firmly at the bottom of the page with zero ghost space */}
+      <footer className="w-full border-t border-slate-200/80 bg-white/70 backdrop-blur-xs mt-10 py-4.5">
+        <div className="max-w-7xl mx-auto px-6 sm:px-10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+          <div className="flex items-center gap-2">
+            <span>© 2026 kongaresanket_quizy • All rights reserved.</span>
+          </div>
 
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => setShowHelpModal(true)}
-            className="hover:text-slate-600 transition-colors cursor-pointer"
-          >
-            How it works
-          </button>
-          <a
-            href="mailto:kongaresanket27@gmail.com"
-            className="hover:text-slate-600 transition-colors hidden sm:inline-block"
-          >
-            kongaresanket27@gmail.com
-          </a>
+          <div className="flex items-center gap-5">
+            <button
+              type="button"
+              onClick={() => setShowHelpModal(true)}
+              className="hover:text-indigo-600 transition-colors cursor-pointer"
+            >
+              How it works
+            </button>
+            <a
+              href="mailto:kongaresanket27@gmail.com"
+              className="hover:text-indigo-600 transition-colors"
+            >
+              kongaresanket27@gmail.com
+            </a>
+          </div>
         </div>
       </footer>
 
