@@ -151,7 +151,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setGoogleLoading(true);
 
     try {
-      const clientId = '37730456049-73lkm4kg9gldv0ehobq5t07gt6j9tdu2.apps.googleusercontent.com';
+      let clientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '37730456049-73lkm4kg9gldv0ehobq5t07gt6j9tdu2.apps.googleusercontent.com';
+      try {
+        const config = await api.getGoogleAuthUrl('user');
+        if (config?.clientId) {
+          clientId = config.clientId;
+        }
+      } catch (e) {
+        // Fallback to default
+      }
       const googleObj = typeof window !== 'undefined' ? (window as any).google : null;
 
       // 1. Prioritize Google Identity Services (GSI) Token Client
