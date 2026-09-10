@@ -222,7 +222,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
           <button
             onClick={onLogout}
             className="p-1.5 rounded-xl text-rose-600 hover:bg-rose-50 cursor-pointer"
-            title="Sign Out"
+            title="Log Out"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -406,7 +406,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4 shrink-0" />
-            Sign Out
+            Log Out
           </button>
         </div>
       </aside>

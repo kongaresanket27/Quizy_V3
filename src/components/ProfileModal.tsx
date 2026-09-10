@@ -216,7 +216,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               className="py-2.5 px-4 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 font-bold rounded-2xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
-              Sign Out
+              Log Out
             </button>
           )}
         </div>

@@ -399,7 +399,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
             <button
               onClick={onLogout}
               className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950/80 hover:text-rose-400 border border-slate-700 text-slate-300 transition-all cursor-pointer"
-              title="Sign Out of Super Admin Command Center"
+              title="Log Out of Super Admin Command Center"
             >
               <LogOut className="w-4 h-4" />
             </button>
