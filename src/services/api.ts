@@ -162,11 +162,11 @@ export const api = {
     return res.json();
   },
 
-  async generateAiQuestions(quizId: number, prompt: string, subject?: string, count: number = 5, difficulty: string = 'Medium') {
+  async generateAiQuestions(quizId: number, prompt: string, subject?: string, count: number = 5, difficulty: string = 'Medium', style?: string) {
     const res = await fetch(`${API_BASE}/ai/generate-questions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quiz_id: quizId, prompt, subject, count, difficulty }),
+      body: JSON.stringify({ quiz_id: quizId, prompt, subject, count, difficulty, style }),
     });
     if (!res.ok) {
       const err = await res.json();

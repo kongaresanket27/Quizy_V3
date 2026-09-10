@@ -50,7 +50,42 @@ import { Quiz, Question, QuizAttempt, AdminKPIs, UserPerformancePrediction, Plat
 import { UserReportModal } from './UserReportModal';
 import { ProfileModal } from './ProfileModal';
 
+export const QUESTION_STYLES = [
+  { id: 'Mixed / Balanced', label: '🌟 All / Balanced Mix', desc: 'Holistic mix of concepts, applications, and scenarios' },
+  { id: 'Scenario-Based & Practical Cases', label: '🎯 Scenario-Based & Cases', desc: 'Real-world situations and practical problem solving' },
+  { id: 'Deep Conceptual & Theoretical', label: '🔬 Deep Conceptual', desc: 'First principles, mechanisms, and "why" analysis' },
+  { id: 'Numerical & Problem Solving', label: '🧮 Numerical & Calculation', desc: 'Step-by-step computations, formulas, and working' },
+  { id: 'Code & Technical Analysis', label: '💻 Code & Implementation', desc: 'Code snippets, output prediction, and debugging' },
+  { id: 'Comparative & Trade-off Analysis', label: '⚖️ Comparative & Trade-offs', desc: 'Contrasting methods, pros/cons, and decisions' },
+];
+
 export const TOPIC_DOMAIN_OPTIONS = [
+  // --- Smart Prompt-Driven Mode ---
+  { value: 'Auto', label: '✨ Auto-Detect Topic from My Prompt (Recommended)', group: 'Smart' },
+
+  // --- Natural & Medical Sciences ---
+  { value: 'Biology: Cell, Genetics & Physiology', label: 'Biology (Cell Biology, Molecular Genetics, Physiology)', group: 'Natural & Health Sciences' },
+  { value: 'Chemistry: Organic & Physical', label: 'Chemistry (Reaction Mechanisms, Thermodynamics, Kinetics)', group: 'Natural & Health Sciences' },
+  { value: 'Physics: Classical & Modern', label: 'Physics (Mechanics, Electromagnetism, Quantum & Optics)', group: 'Natural & Health Sciences' },
+  { value: 'Medical & Clinical Sciences', label: 'Medicine & Health (Pathology, Anatomy, Pharmacology)', group: 'Natural & Health Sciences' },
+
+  // --- Humanities, History & Social Sciences ---
+  { value: 'World History & Civilizations', label: 'World History (Revolutions, Empires, World Wars, Civil Rights)', group: 'Humanities & Social Sciences' },
+  { value: 'Political Science, Law & Constitution', label: 'Polity & Law (Constitutions, Governance, Treaties & Rights)', group: 'Humanities & Social Sciences' },
+  { value: 'Philosophy, Ethics & Logic', label: 'Philosophy & Ethics (Moral Frameworks, Epistemology, Logic)', group: 'Humanities & Social Sciences' },
+  { value: 'Literature & Language Grammar', label: 'Literature & Linguistics (Textual Analysis, Grammar, Rhetoric)', group: 'Humanities & Social Sciences' },
+
+  // --- Business, Economics & Finance ---
+  { value: 'Micro & Macroeconomics', label: 'Economics (Market Equilibrium, Elasticity, Fiscal Policy, GDP)', group: 'Business & Economics' },
+  { value: 'Financial Accounting & Reporting', label: 'Accounting & Finance (Balance Sheet, Cash Flow, Valuation)', group: 'Business & Economics' },
+  { value: 'Business Strategy & Management', label: 'Management & Strategy (Corporate Governance, Operations)', group: 'Business & Economics' },
+
+  // --- Mathematics & Quantitative ---
+  { value: 'Calculus & Mathematical Analysis', label: 'Calculus & Analysis (Limits, Derivatives, Integrals, ODEs)', group: 'Mathematics & Logic' },
+  { value: 'Linear Algebra & Vectors', label: 'Linear Algebra (Matrices, Eigenvalues, Vector Spaces)', group: 'Mathematics & Logic' },
+  { value: 'Trigonometry & Geometry', label: 'Trigonometry & Geometry (Identities, Coordinate Systems)', group: 'Mathematics & Logic' },
+  { value: 'Probability & Applied Statistics', label: 'Probability & Statistics (Distributions, Hypothesis Testing)', group: 'Mathematics & Logic' },
+
   // --- Competitive Entrance Examinations ---
   { value: 'GATE CS & IT', label: 'GATE CS & IT (Algorithms, TOC, Compilers, OS, DBMS)', group: 'Competitive Exams' },
   { value: 'GATE Electronics (ECE/EE)', label: 'GATE ECE & EE (Signals, Control Systems, Digital Circuits)', group: 'Competitive Exams' },
@@ -129,9 +164,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
   const [resultsQuizFilter, setResultsQuizFilter] = useState<string>('all');
 
   // Ollama AI Question Generator state
-  const [aiSelectedTopic, setAiSelectedTopic] = useState('Python');
+  const [aiSelectedTopic, setAiSelectedTopic] = useState('Auto');
   const [customTopicInput, setCustomTopicInput] = useState('');
   const [aiCustomPrompt, setAiCustomPrompt] = useState('');
+  const [aiQuestionStyle, setAiQuestionStyle] = useState<string>('Mixed / Balanced');
   const [aiTargetQuizId, setAiTargetQuizId] = useState<string>('');
   const [aiQuestionCount, setAiQuestionCount] = useState<number>(10);
   const [aiDifficulty, setAiDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
@@ -334,17 +370,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
 
     let effectiveTopic = aiSelectedTopic === 'Other'
       ? customTopicInput.trim()
+      : aiSelectedTopic === 'Auto'
+      ? (targetQuiz?.subject || 'Prompt-Driven')
       : aiSelectedTopic;
-
-    // Intelligent domain realignment: if user prompt is clearly trigonometry/math or target quiz is math, ensure topic reflects it
-    const isPromptTrig = /trig|compound|multiple angle|sin2|sin 2|sin3|sin 3|sin\(|cos\(|tan\(|thetha|theta|angle|identity/i.test(aiCustomPrompt);
-    const isTargetMath = targetQuiz && /math/i.test(targetQuiz.subject || targetQuiz.title);
-
-    if (isPromptTrig) {
-      effectiveTopic = 'JEE Main & Adv: Mathematics';
-    } else if (aiSelectedTopic === 'Python' && isTargetMath) {
-      effectiveTopic = targetQuiz?.subject || 'JEE Main & Adv: Mathematics';
-    }
 
     if (aiSelectedTopic === 'Other' && !effectiveTopic) {
       setAiErrorMessage('Please enter your custom topic domain name in the typing window below.');
@@ -361,10 +389,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
         aiCustomPrompt,
         effectiveTopic,
         safeCount,
-        aiDifficulty
+        aiDifficulty,
+        aiQuestionStyle
       );
 
-      setAiSuccessMessage(`Generated ${res.count || safeCount} questions for "${effectiveTopic}" (${aiDifficulty}) successfully!`);
+      setAiSuccessMessage(`Generated ${res.count || safeCount} questions (${aiDifficulty} · ${aiQuestionStyle}) successfully!`);
       await fetchAllData();
       if (selectedQuizForQuestions?.id === targetId || manageQuestionsSubView === 'question_detail') {
         const updated = await api.getQuiz(targetId);
@@ -1159,20 +1188,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                             onChange={e => {
                               const newId = e.target.value;
                               setAiTargetQuizId(newId);
-                              const matched = quizzes.find(q => q.id.toString() === newId);
-                              if (matched?.subject) {
-                                if (/math/i.test(matched.subject)) {
-                                  setAiSelectedTopic('JEE Main & Adv: Mathematics');
-                                } else if (/phys/i.test(matched.subject)) {
-                                  setAiSelectedTopic('JEE Main & Adv: Physics');
-                                } else if (/chem/i.test(matched.subject)) {
-                                  setAiSelectedTopic('JEE Main & Adv: Chemistry');
-                                } else if (/python/i.test(matched.subject)) {
-                                  setAiSelectedTopic('Python');
-                                } else if (/data/i.test(matched.subject)) {
-                                  setAiSelectedTopic('Databases');
-                                }
-                              }
                             }}
                             className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-2xl text-xs text-white focus:outline-none focus:border-indigo-400 cursor-pointer"
                           >
@@ -1186,7 +1201,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
 
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
-                            <label className="block text-xs font-bold text-slate-300">Topic Domain</label>
+                            <label className="block text-xs font-bold text-slate-300">Topic Domain Focus</label>
                             {aiSelectedTopic === 'Other' && (
                               <span className="text-[11px] font-bold text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-400/30 animate-pulse">
                                 Custom Topic Window Active
@@ -1196,8 +1211,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                           <select
                             value={aiSelectedTopic}
                             onChange={e => setAiSelectedTopic(e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-2xl text-xs text-white focus:outline-none focus:border-indigo-400 focus:bg-slate-900/90 transition-colors"
+                            className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-2xl text-xs text-white focus:outline-none focus:border-indigo-400 focus:bg-slate-900/90 transition-colors cursor-pointer"
                           >
+                            <optgroup label="✨ Smart Mode" className="bg-slate-900 text-cyan-300 font-bold">
+                              {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Smart').map(t => (
+                                <option key={t.value} value={t.value} className="bg-slate-900 text-cyan-200 font-bold">
+                                  {t.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="🧬 Natural & Health Sciences (Bio, Chem, Physics, Medicine)" className="bg-slate-900 text-emerald-400 font-bold">
+                              {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Natural & Health Sciences').map(t => (
+                                <option key={t.value} value={t.value} className="bg-slate-900 text-emerald-200 font-normal">
+                                  {t.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="🏛️ Humanities, History & Social Sciences" className="bg-slate-900 text-purple-300 font-bold">
+                              {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Humanities & Social Sciences').map(t => (
+                                <option key={t.value} value={t.value} className="bg-slate-900 text-purple-200 font-normal">
+                                  {t.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="💼 Business, Economics & Finance" className="bg-slate-900 text-amber-300 font-bold">
+                              {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Business & Economics').map(t => (
+                                <option key={t.value} value={t.value} className="bg-slate-900 text-amber-200 font-normal">
+                                  {t.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="📐 Mathematics & Logic" className="bg-slate-900 text-blue-300 font-bold">
+                              {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Mathematics & Logic').map(t => (
+                                <option key={t.value} value={t.value} className="bg-slate-900 text-blue-200 font-normal">
+                                  {t.label}
+                                </option>
+                              ))}
+                            </optgroup>
                             <optgroup label="🏆 Competitive Entrance Exams (GATE, JEE, NEET, CAT, UPSC)" className="bg-slate-900 text-amber-300 font-bold">
                               {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Competitive Exams').map(t => (
                                 <option key={t.value} value={t.value} className="bg-slate-900 text-amber-200 font-medium">
@@ -1205,28 +1255,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                                 </option>
                               ))}
                             </optgroup>
-                            <optgroup label="Core Computer Science & Programming" className="bg-slate-900 text-slate-400 font-bold">
-                              {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Programming Languages' || t.group === 'Computer Science Core').map(t => (
+                            <optgroup label="💻 Core Computer Science & Programming" className="bg-slate-900 text-slate-300 font-bold">
+                              {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Programming Languages' || t.group === 'Computer Science Core' || t.group === 'Data & Databases' || t.group === 'Artificial Intelligence' || t.group === 'Software Engineering' || t.group === 'DevOps & Security' || t.group === 'Emerging Tech').map(t => (
                                 <option key={t.value} value={t.value} className="bg-slate-900 text-white font-normal">
                                   {t.label}
                                 </option>
                               ))}
                             </optgroup>
-                            <optgroup label="Data, AI & Software Architecture" className="bg-slate-900 text-slate-400 font-bold">
-                              {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Data & Databases' || t.group === 'Artificial Intelligence' || t.group === 'Software Engineering').map(t => (
-                                <option key={t.value} value={t.value} className="bg-slate-900 text-white font-normal">
-                                  {t.label}
-                                </option>
-                              ))}
-                            </optgroup>
-                            <optgroup label="Cloud, Infrastructure & Emerging Tech" className="bg-slate-900 text-slate-400 font-bold">
-                              {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'DevOps & Security' || t.group === 'Emerging Tech').map(t => (
-                                <option key={t.value} value={t.value} className="bg-slate-900 text-white font-normal">
-                                  {t.label}
-                                </option>
-                              ))}
-                            </optgroup>
-                            <optgroup label="Custom / Free-form Domain" className="bg-slate-900 text-amber-300 font-bold">
+                            <optgroup label="✍️ Custom / Free-form Domain" className="bg-slate-900 text-amber-300 font-bold">
                               {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Custom').map(t => (
                                 <option key={t.value} value={t.value} className="bg-slate-900 text-amber-300 font-semibold">
                                   {t.label}
@@ -1406,49 +1442,74 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                         </div>
                       </div>
 
+                      {/* Question Style / Pedagogical Format Selector */}
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold text-slate-300">
+                            Question Style & Pedagogical Focus
+                          </label>
+                          <span className="text-[11px] font-medium text-cyan-300">
+                            {QUESTION_STYLES.find(s => s.id === aiQuestionStyle)?.desc}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                          {QUESTION_STYLES.map(style => (
+                            <button
+                              key={style.id}
+                              type="button"
+                              onClick={() => setAiQuestionStyle(style.id)}
+                              className={`px-3 py-2 rounded-xl text-xs font-medium text-left transition-all cursor-pointer border ${
+                                aiQuestionStyle === style.id
+                                  ? 'bg-indigo-500/40 text-white border-indigo-400 ring-2 ring-indigo-400/40 font-bold shadow-sm'
+                                  : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10 hover:border-white/20'
+                              }`}
+                            >
+                              <div className="truncate">{style.label}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-bold text-slate-300">Prompt / Topic Instructions</label>
-                          <span className="text-[10px] text-slate-400">Click any suggested topic below to load</span>
+                          <label className="block text-xs font-bold text-slate-300">Prompt / Topic & Specific Instructions</label>
+                          <span className="text-[10px] text-slate-400">Type any custom requirement or pick an academic topic below</span>
                         </div>
                         <input
                           type="text"
                           required
                           value={aiCustomPrompt}
                           onChange={e => setAiCustomPrompt(e.target.value)}
-                          placeholder="e.g. Trigonometry compound and angle , Sin2theta ,Sin 3 thetha , Sin(a+b)..."
+                          placeholder="e.g. Photosynthesis Calvin cycle, French Revolution Reign of Terror, Trigonometry compound angles, or React hooks..."
                           className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400 shadow-inner"
                         />
 
-                        {/* Quick prompt suggestions */}
+                        {/* Quick prompt suggestions across diverse academic disciplines */}
                         <div className="flex items-center gap-1.5 flex-wrap mt-2">
                           {[
-                            'Trigonometry compound and angle , Sin2theta ,Sin 3 thetha , Sin(a+b) all this',
-                            'Calculus: Limits, Derivatives & Definite Integrals',
-                            'Linear Algebra: Matrices, Determinants & Eigenvalues',
-                            'Probability: Bayes Theorem & Distributions',
-                            'Python: OOP, Decorators & Generator Functions',
+                            { label: 'Trigonometry: Compound & Multiple Angles', text: 'Trigonometry compound and angle: sin(A+B), cos(A+B), sin 2θ, cos 2θ, and fundamental identities' },
+                            { label: 'Biology: Cell Respiration & Krebs Cycle', text: 'Cellular respiration: Glycolysis, Krebs citric acid cycle, electron transport chain, and ATP yield' },
+                            { label: 'History: French Revolution & Rights', text: 'French Revolution: Estates-General, Storming of Bastille, Reign of Terror, and Declaration of the Rights of Man' },
+                            { label: 'Chemistry: Acid-Base & Buffer Equilibrium', text: 'Chemical equilibrium: Le Chatelier principle, pH calculations, Henderson-Hasselbalch equation, and buffer solutions' },
+                            { label: 'Business: Supply Elasticity & Market Equilibrium', text: 'Microeconomics: Price elasticity of demand, consumer surplus, deadweight loss, and market equilibrium shifts' },
+                            { label: 'Python: OOP, Decorators & Generators', text: 'Python: OOP inheritance, dunder methods, function decorators, and generator memory efficiency' },
+                            { label: 'Law & Polity: Separation of Powers', text: 'Constitutional Law: Checks and balances, judicial review, fundamental rights, and federal vs state powers' },
+                            { label: 'Calculus: Limits & Derivatives', text: 'Differential Calculus: L\'Hôpital\'s rule, product & chain rules, and critical points analysis' },
                           ].map(sug => (
                             <button
-                              key={sug}
+                              key={sug.label}
                               type="button"
                               onClick={() => {
-                                setAiCustomPrompt(sug);
-                                if (/trig|sin|angle/i.test(sug)) {
-                                  setAiSelectedTopic('JEE Main & Adv: Mathematics');
-                                } else if (/calculus|algebra|probability/i.test(sug)) {
-                                  setAiSelectedTopic('JEE Main & Adv: Mathematics');
-                                } else if (/python/i.test(sug)) {
-                                  setAiSelectedTopic('Python');
-                                }
+                                setAiCustomPrompt(sug.text);
+                                setAiSelectedTopic('Auto');
                               }}
                               className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer text-left ${
-                                aiCustomPrompt === sug
+                                aiCustomPrompt === sug.text
                                   ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 font-bold'
                                   : 'bg-white/5 hover:bg-white/15 text-slate-300 border-white/10'
                               }`}
                             >
-                              💡 {sug.length > 45 ? sug.slice(0, 42) + '...' : sug}
+                              💡 {sug.label}
                             </button>
                           ))}
                         </div>
@@ -1456,7 +1517,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
 
                       <div className="flex justify-between items-center pt-2">
                         <div className="text-[11px] text-slate-300 font-medium">
-                          Configured to generate <span className="font-bold text-white bg-indigo-500/30 px-2 py-0.5 rounded-md border border-indigo-400/30">{aiQuestionCount} questions</span> at <span className="font-bold text-white">{aiDifficulty}</span> difficulty
+                          Configured: <span className="font-bold text-white bg-indigo-500/30 px-2 py-0.5 rounded-md border border-indigo-400/30">{aiQuestionCount} questions</span> · <span className="font-bold text-emerald-400">{aiDifficulty}</span> · <span className="font-bold text-cyan-300">{aiQuestionStyle}</span>
                         </div>
                         <button
                           type="submit"
@@ -2167,17 +2228,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                     onChange={e => setAiSelectedTopic(e.target.value)}
                     className="w-full px-3.5 py-2 bg-white/10 border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-400 cursor-pointer"
                   >
+                    <optgroup label="✨ Smart Mode" className="bg-slate-900 text-cyan-300 font-bold">
+                      {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Smart').map(t => (
+                        <option key={t.value} value={t.value} className="bg-slate-900 text-cyan-200 font-bold">{t.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🧬 Natural Sciences & Medicine" className="bg-slate-900 text-emerald-300 font-bold">
+                      {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Natural & Health Sciences').map(t => (
+                        <option key={t.value} value={t.value} className="bg-slate-900 text-white">{t.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🏛️ Humanities, History & Social Sciences" className="bg-slate-900 text-purple-300 font-bold">
+                      {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Humanities & Social Sciences').map(t => (
+                        <option key={t.value} value={t.value} className="bg-slate-900 text-white">{t.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="💼 Business, Economics & Finance" className="bg-slate-900 text-amber-300 font-bold">
+                      {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Business & Economics').map(t => (
+                        <option key={t.value} value={t.value} className="bg-slate-900 text-white">{t.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="📐 Mathematics & Logic" className="bg-slate-900 text-blue-300 font-bold">
+                      {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Mathematics & Logic').map(t => (
+                        <option key={t.value} value={t.value} className="bg-slate-900 text-white">{t.label}</option>
+                      ))}
+                    </optgroup>
                     <optgroup label="🏆 Competitive Entrance Exams" className="bg-slate-900 text-amber-300 font-bold">
                       {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Competitive Exams').map(t => (
                         <option key={t.value} value={t.value} className="bg-slate-900 text-white">{t.label}</option>
                       ))}
                     </optgroup>
                     <optgroup label="💻 Computer Science & Software" className="bg-slate-900 text-indigo-300 font-bold">
-                      {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Engineering & CS').map(t => (
+                      {TOPIC_DOMAIN_OPTIONS.filter(t => t.group === 'Programming Languages' || t.group === 'Computer Science Core' || t.group === 'Data & Databases').map(t => (
                         <option key={t.value} value={t.value} className="bg-slate-900 text-white">{t.label}</option>
                       ))}
                     </optgroup>
-                    <optgroup label="✨ Custom / Other" className="bg-slate-900 text-emerald-300 font-bold">
+                    <optgroup label="✍️ Custom / Other" className="bg-slate-900 text-emerald-300 font-bold">
                       <option value="Other" className="bg-slate-900 text-amber-300 font-bold">Type My Own Custom Domain / Syllabus...</option>
                     </optgroup>
                   </select>
@@ -2189,7 +2275,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">Question Count</label>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {[5, 10, 15, 20].map(cnt => (
+                    {[5, 10, 15, 20, 30].map(cnt => (
                       <button
                         key={cnt}
                         type="button"
@@ -2227,6 +2313,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                 </div>
               </div>
 
+              {/* Question Style Selection */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">Question Style & Pedagogical Focus</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {QUESTION_STYLES.map(style => (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => setAiQuestionStyle(style.id)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-all border ${
+                        aiQuestionStyle === style.id
+                          ? 'bg-indigo-500/40 text-white border-indigo-400 font-bold'
+                          : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
+                      }`}
+                    >
+                      <div className="truncate">{style.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Prompt Input */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -2238,34 +2345,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onLogout, onOpenSuperAdm
                   required
                   value={aiCustomPrompt}
                   onChange={e => setAiCustomPrompt(e.target.value)}
-                  placeholder="e.g. Trigonometry compound and angle , Sin2theta ,Sin 3 thetha , Sin(a+b)..."
+                  placeholder="e.g. Photosynthesis Calvin cycle, French Revolution Reign of Terror, or Trigonometry compound angles..."
                   className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400 shadow-inner"
                 />
 
                 {/* Quick suggestions */}
                 <div className="flex items-center gap-1.5 flex-wrap mt-2">
                   {[
-                    'Trigonometry compound and angle , Sin2theta ,Sin 3 thetha , Sin(a+b) all this',
-                    'Calculus: Limits, Derivatives & Definite Integrals',
-                    'Linear Algebra: Matrices, Determinants & Eigenvalues',
-                    'Python: OOP, Decorators & Generator Functions',
+                    { label: 'Trig: Compound & Double Angles', text: 'Trigonometry compound and angle: sin(A+B), cos(A+B), sin 2θ, cos 2θ, and fundamental identities' },
+                    { label: 'Biology: Cellular Respiration', text: 'Cellular respiration: Glycolysis, Krebs citric acid cycle, electron transport chain, and ATP yield' },
+                    { label: 'History: French Revolution', text: 'French Revolution: Estates-General, Storming of Bastille, Reign of Terror, and Declaration of the Rights of Man' },
+                    { label: 'Economics: Supply & Demand Elasticity', text: 'Microeconomics: Price elasticity of demand, consumer surplus, deadweight loss, and market equilibrium shifts' },
+                    { label: 'Python: OOP & Decorators', text: 'Python: OOP inheritance, dunder methods, function decorators, and generator memory efficiency' },
                   ].map(sug => (
                     <button
-                      key={sug}
+                      key={sug.label}
                       type="button"
                       onClick={() => {
-                        setAiCustomPrompt(sug);
-                        if (/trig|sin|angle/i.test(sug)) setAiSelectedTopic('JEE Main & Adv: Mathematics');
-                        else if (/calculus|algebra/i.test(sug)) setAiSelectedTopic('JEE Main & Adv: Mathematics');
-                        else if (/python/i.test(sug)) setAiSelectedTopic('Python');
+                        setAiCustomPrompt(sug.text);
+                        setAiSelectedTopic('Auto');
                       }}
                       className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer text-left ${
-                        aiCustomPrompt === sug
+                        aiCustomPrompt === sug.text
                           ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 font-bold'
                           : 'bg-white/5 hover:bg-white/15 text-slate-300 border-white/10'
                       }`}
                     >
-                      💡 {sug.length > 40 ? sug.slice(0, 38) + '...' : sug}
+                      💡 {sug.label}
                     </button>
                   ))}
                 </div>

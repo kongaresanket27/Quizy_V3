@@ -1630,7 +1630,7 @@ app.delete('/api/questions/:id', (req, res) => {
 
 // --- AI Question Generation (Server-Side Gemini SDK + Rich Curriculum Engine) ---
 app.post('/api/ai/generate-questions', async (req, res) => {
-  const { prompt, quiz_id, subject, count = 10, difficulty = 'Medium' } = req.body;
+  const { prompt, quiz_id, subject, count = 10, difficulty = 'Medium', style } = req.body;
   if (!prompt || !quiz_id) {
     return res.status(400).json({ error: 'Prompt and quiz_id are required' });
   }
@@ -1639,8 +1639,12 @@ app.post('/api/ai/generate-questions', async (req, res) => {
 
   try {
     const requestedCount = Math.min(Math.max(parseInt((count ?? 10).toString(), 10) || 10, 1), 50);
+    const effectivePrompt = style && style !== 'Mixed / Balanced'
+      ? `${prompt}\n[PEDAGOGICAL QUESTION STYLE / FORMAT: ${style}]`
+      : prompt;
+
     const generatedList = await generateCurriculumQuestions(
-      prompt,
+      effectivePrompt,
       subject || 'General',
       requestedCount,
       (difficulty as 'Easy' | 'Medium' | 'Hard') || 'Medium',
