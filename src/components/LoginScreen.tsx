@@ -140,7 +140,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     };
   }, [role, onSuccess, setAuthUser]);
 
-  // Google Sign-In Handler: Launches real Google OAuth authorization popup directly
+  // Google Sign-In Handler: Uses Google Identity Services to authenticate without redirect_uri mismatch
   const handleGoogleSignIn = async () => {
     if (role !== 'user') {
       setError('Teacher and Super Admin accounts cannot log in with Google. Please use username and password credentials.');
@@ -151,6 +151,53 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setGoogleLoading(true);
 
     try {
+      const clientId = '37730456049-73lkm4kg9gldv0ehobq5t07gt6j9tdu2.apps.googleusercontent.com';
+      const googleObj = typeof window !== 'undefined' ? (window as any).google : null;
+
+      // 1. Prioritize Google Identity Services (GSI) Token Client
+      // The token model operates entirely in-page/popup without sending redirect_uri,
+      // permanently preventing Error 400: redirect_uri_mismatch.
+      if (googleObj?.accounts?.oauth2?.initTokenClient) {
+        const tokenClient = googleObj.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'openid email profile',
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse.error) {
+              if (tokenResponse.error !== 'popup_closed_by_user') {
+                setError(tokenResponse.error_description || tokenResponse.error || 'Google Sign-In was cancelled.');
+              }
+              setGoogleLoading(false);
+              return;
+            }
+            if (tokenResponse.access_token) {
+              try {
+                const res = await api.googleCredentialLogin(tokenResponse.access_token, 'user');
+                if (res.user) {
+                  setSuccessMessage(`Google Authentication successful! Welcome, ${res.user.fullName || res.user.username}!`);
+                  setAuthUser({
+                    id: res.user.id,
+                    username: res.user.username,
+                    role: 'user',
+                    email: res.user.email,
+                    fullName: res.user.fullName,
+                  });
+                  setTimeout(() => {
+                    onSuccess('user');
+                  }, 400);
+                }
+              } catch (err: any) {
+                setError(err.message || 'Failed to authenticate Google user.');
+              } finally {
+                setGoogleLoading(false);
+              }
+            }
+          },
+        });
+        tokenClient.requestAccessToken({ prompt: 'select_account' });
+        return;
+      }
+
+      // 2. Fallback to standard OAuth URL if GSI script is still loading
       const redirectUri = `${window.location.origin}/auth/google/callback`;
       let authUrl: string | undefined;
 
@@ -158,12 +205,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         const config = await api.getGoogleAuthUrl('user', redirectUri);
         authUrl = config.url;
       } catch (e) {
-        // Fallback to client-side URL generation
+        // Fallback
       }
 
-      // If server didn't provide a URL, construct the standard Google OAuth URL directly
       if (!authUrl) {
-        const clientId = '37730456049-73lkm4kg9gldv0ehobq5t07gt6j9tdu2.apps.googleusercontent.com';
         const statePayload = { role: 'user', redirectUri };
         const state = btoa(JSON.stringify(statePayload));
         const params = new URLSearchParams({
@@ -178,7 +223,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
       }
 
-      // Open Google OAuth authorization window
       const authWindow = window.open(
         authUrl,
         'google_oauth_popup',
@@ -191,7 +235,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         return;
       }
 
-      // Track popup closure
       const timer = setInterval(() => {
         if (authWindow.closed) {
           clearInterval(timer);

@@ -984,13 +984,26 @@ app.post('/api/auth/google/credential', async (req, res) => {
     }
 
     let profile: any = null;
+    // 1. Try verifying as an access token via Google userinfo endpoint
     try {
-      const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
-      if (verifyRes.ok) {
-        profile = await verifyRes.json();
+      const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${credential}` },
+      });
+      if (userinfoRes.ok) {
+        profile = await userinfoRes.json();
       }
-    } catch (e) {
-      // Fallback
+    } catch (e) {}
+
+    // 2. If not, try verifying as an ID token
+    if (!profile || !profile.email) {
+      try {
+        const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+        if (verifyRes.ok) {
+          profile = await verifyRes.json();
+        }
+      } catch (e) {
+        // Fallback
+      }
     }
 
     if (!profile || !profile.email) {
